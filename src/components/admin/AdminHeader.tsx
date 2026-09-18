@@ -33,13 +33,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         <div className="flex items-center justify-between h-18 gap-4">
           {/* Brand & Admin Badge */}
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-bold text-base shadow-xs">
-              B
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 via-amber-300 to-rose-300 text-stone-950 flex items-center justify-center font-extrabold text-base shadow-xs">
+              A
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-bold text-white text-base tracking-tight">
-                  STUDIO BEAUTÉ
+                <span className="font-extrabold text-white text-base tracking-tight">
+                  AYESHA <span className="text-amber-300 font-light">BEAUTY</span>
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-stone-800 text-amber-400 border border-stone-700">
                   Store Admin

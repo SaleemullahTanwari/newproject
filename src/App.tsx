@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Product, Order, CartItem, FilterState } from './types';
+import { Product, Order, CartItem, FilterState, CustomerUser } from './types';
 import {
   getStoredProducts,
   saveStoredProducts,
@@ -11,7 +11,9 @@ import {
   saveStoredWishlist,
   resetDemoData,
   isAdminAuthenticated,
-  setAdminSession
+  setAdminSession,
+  getStoredCustomerUser,
+  saveStoredCustomerUser
 } from './utils/storage';
 import { CATEGORIES } from './data/initialProducts';
 
@@ -24,6 +26,17 @@ import { CartDrawer } from './components/store/CartDrawer';
 import { CheckoutModal } from './components/store/CheckoutModal';
 import { OrderSuccessModal } from './components/store/OrderSuccessModal';
 import { Footer } from './components/store/Footer';
+import { ProductPage } from './components/store/ProductPage';
+import { AuthModal } from './components/account/AuthModal';
+import { UserAccountModal } from './components/account/UserAccountModal';
+
+// Dedicated Page Views
+import { ShopPage } from './components/pages/ShopPage';
+import { OrdersPage } from './components/pages/OrdersPage';
+import { WishlistPage } from './components/pages/WishlistPage';
+import { AccountPage } from './components/pages/AccountPage';
+import { AboutPage } from './components/pages/AboutPage';
+import { ContactPage } from './components/pages/ContactPage';
 
 // Admin Components
 import { AdminHeader, AdminTab } from './components/admin/AdminHeader';
@@ -46,15 +59,33 @@ import {
 } from 'lucide-react';
 
 export default function App() {
-  // Routing State for /admin-p/login and /admin-p
-  const getInitialRoute = () => {
-    if (typeof window === 'undefined') return '/';
-    const path = window.location.pathname;
-    const hash = window.location.hash;
+  // Helper to resolve route pathname and hash
+  const resolveRoute = (path: string, hash: string): string => {
     if (path.startsWith('/admin-p') || hash.includes('admin-p')) {
       return path.startsWith('/admin-p') ? path : hash.replace('#', '');
     }
+    if (path.startsWith('/product/') || hash.includes('/product/') || hash.startsWith('#product-')) {
+      if (path.startsWith('/product/')) return path;
+      if (hash.includes('/product/')) {
+        const pIndex = hash.indexOf('/product/');
+        return hash.substring(pIndex);
+      }
+      if (hash.startsWith('#product-')) {
+        return `/product/${hash.replace('#product-', '')}`;
+      }
+    }
+    const knownRoutes = ['/shop', '/orders', '/wishlist', '/account', '/about', '/contact'];
+    for (const route of knownRoutes) {
+      if (path.startsWith(route) || hash.startsWith('#' + route.slice(1)) || hash === route) {
+        return route;
+      }
+    }
     return '/';
+  };
+
+  const getInitialRoute = () => {
+    if (typeof window === 'undefined') return '/';
+    return resolveRoute(window.location.pathname, window.location.hash);
   };
 
   const [currentPath, setCurrentPath] = useState<string>(getInitialRoute);
@@ -75,13 +106,7 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = () => {
-      const path = window.location.pathname;
-      const hash = window.location.hash;
-      if (path.startsWith('/admin-p') || hash.includes('admin-p')) {
-        setCurrentPath(path.startsWith('/admin-p') ? path : hash.replace('#', ''));
-      } else {
-        setCurrentPath('/');
-      }
+      setCurrentPath(resolveRoute(window.location.pathname, window.location.hash));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -112,6 +137,12 @@ export default function App() {
   const [isProductFormOpen, setIsProductFormOpen] = useState<boolean>(false);
   const [productToEdit, setProductToEdit] = useState<Product | null>(null);
 
+  // Customer Account & Auth State
+  const [currentUser, setCurrentUser] = useState<CustomerUser | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState<boolean>(false);
+  const [accountModalTab, setAccountModalTab] = useState<'orders' | 'profile' | 'wishlist'>('orders');
+
   // Toast Feedback State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -129,7 +160,38 @@ export default function App() {
     setCart(getStoredCart());
     setWishlist(getStoredWishlist());
     setIsAdminLoggedIn(isAdminAuthenticated());
+    setCurrentUser(getStoredCustomerUser());
   }, []);
+
+  // Customer Auth Handlers
+  const handleLoginSuccess = (user: CustomerUser) => {
+    setCurrentUser(user);
+    saveStoredCustomerUser(user);
+    showToast(`Welcome back, ${user.name}`);
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    saveStoredCustomerUser(null);
+    setIsAccountModalOpen(false);
+    showToast('Signed out of your customer account');
+  };
+
+  const handleUpdateUser = (updated: CustomerUser) => {
+    setCurrentUser(updated);
+    saveStoredCustomerUser(updated);
+    showToast('Your profile and delivery details were updated');
+  };
+
+  // Number of orders placed by this customer
+  const userOrderCount = useMemo(() => {
+    if (!currentUser) return 0;
+    return orders.filter(
+      (o) =>
+        (o.userId && o.userId === currentUser.id) ||
+        (o.customer && o.customer.email && o.customer.email.toLowerCase() === currentUser.email.toLowerCase())
+    ).length;
+  }, [orders, currentUser]);
 
   // Sync to Storage when data changes
   const updateProducts = (newProducts: Product[]) => {
@@ -526,6 +588,126 @@ export default function App() {
     );
   }
 
+  // DEDICATED SEPARATE PRODUCT PAGE VIEW (/product/:id)
+  if (currentPath.startsWith('/product/')) {
+    const activeProductId = currentPath.replace('/product/', '').split('?')[0].split('#')[0];
+    return (
+      <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-sans selection:bg-stone-900 selection:text-white">
+        {/* Dynamic Toast Feedback Notification */}
+        {toastMessage && (
+          <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-3 fade-in duration-200">
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-stone-900 text-white text-xs font-semibold shadow-2xl border border-stone-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{toastMessage}</span>
+            </div>
+          </div>
+        )}
+
+        <ProductPage
+          productId={activeProductId}
+          products={products}
+          onNavigateBack={() => navigateTo('/')}
+          onNavigateToProduct={(id) => navigateTo(`/product/${id}`)}
+          onAddToCart={(product, qty) => {
+            handleAddToCart(product, qty || 1);
+            showToast(`Added ${qty || 1} × ${product.name} to your bag`);
+          }}
+          onDirectCheckout={(product, qty) => {
+            handleAddToCart(product, qty || 1);
+            setIsCheckoutOpen(true);
+          }}
+          isWishlisted={(id) => wishlist.includes(id)}
+          onToggleWishlist={handleToggleWishlist}
+          cartCount={cart.reduce((sum, it) => sum + it.quantity, 0)}
+          wishlistCount={wishlist.length}
+          onOpenCart={() => setIsCartOpen(true)}
+          onOpenCheckout={() => setIsCheckoutOpen(true)}
+          searchQuery={searchQuery}
+          onSearchChange={(q) => {
+            setSearchQuery(q);
+            navigateTo('/shop');
+          }}
+          onSelectCategory={(cat) => {
+            setActiveCategory(cat);
+            navigateTo('/shop');
+          }}
+          onNavigateToAdminLogin={() => navigateTo('/admin-p/login')}
+          onNavigate={navigateTo}
+          currentPath={currentPath}
+          currentUser={currentUser}
+          userOrderCount={userOrderCount}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onOpenAccountModal={(tab) => {
+            setAccountModalTab(tab || 'orders');
+            setIsAccountModalOpen(true);
+          }}
+        />
+
+        {/* SHOPPING CART DRAWER */}
+        <CartDrawer
+          isOpen={isCartOpen}
+          onClose={() => setIsCartOpen(false)}
+          cart={cart}
+          onUpdateQuantity={handleUpdateCartQuantity}
+          onRemoveItem={handleRemoveCartItem}
+          onProceedToCheckout={() => {
+            setIsCartOpen(false);
+            setIsCheckoutOpen(true);
+          }}
+          appliedPromo={appliedPromo}
+          promoDiscountRate={promoDiscountRate}
+          onApplyPromo={handleApplyPromo}
+        />
+
+        {/* CHECKOUT MODAL */}
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          onClose={() => setIsCheckoutOpen(false)}
+          cart={cart}
+          appliedPromo={appliedPromo}
+          promoDiscountRate={promoDiscountRate}
+          onOrderComplete={handleOrderComplete}
+          currentUser={currentUser}
+        />
+
+        {/* ORDER SUCCESS CONFIRMATION MODAL */}
+        <OrderSuccessModal
+          order={completedOrder}
+          isOpen={!!completedOrder}
+          onClose={() => setCompletedOrder(null)}
+        />
+
+        {/* CUSTOMER AUTHENTICATION MODAL */}
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onLoginSuccess={handleLoginSuccess}
+        />
+
+        {/* CUSTOMER ACCOUNT & ORDER TRACKING MODAL */}
+        <UserAccountModal
+          isOpen={isAccountModalOpen}
+          onClose={() => setIsAccountModalOpen(false)}
+          currentUser={currentUser}
+          orders={orders}
+          products={products}
+          wishlistIds={wishlist}
+          onLogout={handleLogout}
+          onUpdateUser={handleUpdateUser}
+          onAddToCart={(product: Product) => {
+            handleAddToCart(product, 1);
+            showToast(`Added ${product.name} to bag`);
+          }}
+          onViewProduct={(id: string) => {
+            setIsAccountModalOpen(false);
+            navigateTo(`/product/${id}`);
+          }}
+          initialTab={accountModalTab}
+        />
+      </div>
+    );
+  }
+
   // STANDARD CLIENT-FACING BEAUTY STORE VIEW (Previous sleek design with dark color palette)
   return (
     <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-sans selection:bg-stone-900 selection:text-white">
@@ -548,141 +730,220 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onOpenCart={() => setIsCartOpen(true)}
-      />
-
-      {/* DARK HERO BANNER */}
-      <HeroBanner
-        totalProducts={products.filter((p) => p.status === 'active').length}
-        onExploreClick={() => {
-          const el = document.getElementById('catalog-section');
-          el?.scrollIntoView({ behavior: 'smooth' });
+        onNavigateHome={() => navigateTo('/')}
+        currentPath={currentPath}
+        onNavigate={navigateTo}
+        currentUser={currentUser}
+        userOrderCount={userOrderCount}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenAccountModal={(tab) => {
+          setAccountModalTab(tab || 'orders');
+          setIsAccountModalOpen(true);
         }}
       />
 
-      {/* MAIN CATALOG SECTION */}
-      <main id="catalog-section" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 w-full">
-        {/* Section Header Title & Filters */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200 mb-8">
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-900">
-              {activeCategory === 'All' ? 'Curated Formulations' : activeCategory}
-            </h2>
-            <p className="text-xs text-stone-500 mt-1 font-normal">
-              Showing {filteredProducts.length} available {filteredProducts.length === 1 ? 'formulation' : 'formulations'}
-            </p>
-          </div>
+      {/* DEDICATED PAGE VIEWS OR FLAGSHIP HOME VIEW */}
+      {currentPath === '/shop' ? (
+        <ShopPage
+          products={products}
+          onAddToCart={(p, qty) => {
+            handleAddToCart(p, qty || 1);
+            showToast(`Added ${qty || 1} × ${p.name} to your bag`);
+          }}
+          onQuickView={(p) => navigateTo(`/product/${p.id}`)}
+          isWishlisted={(id) => wishlist.includes(id)}
+          onToggleWishlist={handleToggleWishlist}
+          activeCategory={activeCategory}
+          onSelectCategory={setActiveCategory}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+        />
+      ) : currentPath === '/orders' ? (
+        <OrdersPage
+          orders={orders}
+          products={products}
+          currentUser={currentUser}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onNavigate={navigateTo}
+          onAddToCart={(p) => {
+            handleAddToCart(p, 1);
+            showToast(`Added ${p.name} to your bag`);
+          }}
+        />
+      ) : currentPath === '/wishlist' ? (
+        <WishlistPage
+          products={products}
+          wishlistIds={wishlist}
+          onToggleWishlist={handleToggleWishlist}
+          onAddToCart={(p) => {
+            handleAddToCart(p, 1);
+            showToast(`Added ${p.name} to your bag`);
+          }}
+          onNavigate={navigateTo}
+        />
+      ) : currentPath === '/account' ? (
+        <AccountPage
+          currentUser={currentUser}
+          orders={orders}
+          products={products}
+          wishlistIds={wishlist}
+          onUpdateUser={handleUpdateUser}
+          onLogout={handleLogout}
+          onOpenAuthModal={() => setIsAuthModalOpen(true)}
+          onNavigate={navigateTo}
+          onAddToCart={(p) => {
+            handleAddToCart(p, 1);
+            showToast(`Added ${p.name} to your bag`);
+          }}
+        />
+      ) : currentPath === '/about' ? (
+        <AboutPage onNavigate={navigateTo} />
+      ) : currentPath === '/contact' ? (
+        <ContactPage />
+      ) : (
+        <>
+          {/* DARK HERO BANNER */}
+          <HeroBanner
+            totalProducts={products.filter((p) => p.status === 'active').length}
+            onExploreClick={() => {
+              const el = document.getElementById('catalog-section');
+              el?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            onSelectProduct={(productId) => {
+              navigateTo(`/product/${productId}`);
+            }}
+          />
 
-          {/* Quick Filters & Sorting Controls */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {/* In stock toggle pill */}
-            <button
-              id="filter-in-stock-btn"
-              onClick={() => setOnlyInStock(!onlyInStock)}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
-                onlyInStock
-                  ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${onlyInStock ? 'bg-emerald-400' : 'bg-stone-300'}`} />
-              <span>In Stock Only</span>
-            </button>
+          {/* MAIN CATALOG SECTION */}
+          <main id="catalog-section" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 w-full">
+            {/* Section Header Title & Filters */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200 mb-8">
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-900">
+                  {activeCategory === 'All' ? 'Curated Formulations' : activeCategory}
+                </h2>
+                <p className="text-xs text-stone-500 mt-1 font-normal">
+                  Showing {filteredProducts.length} available {filteredProducts.length === 1 ? 'formulation' : 'formulations'}
+                </p>
+              </div>
 
-            {/* Sort selection dropdown */}
-            <div className="relative">
-              <select
-                id="catalog-sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="pl-8 pr-8 py-2 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-800 focus:outline-none focus:border-stone-900 shadow-xs cursor-pointer appearance-none"
-              >
-                <option value="featured">Sort: Featured</option>
-                <option value="rating">Highest Rated</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="newest">Newest Formulations</option>
-              </select>
-              <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 pointer-events-none" />
+              {/* Quick Filters & Sorting Controls */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {/* In stock toggle pill */}
+                <button
+                  id="filter-in-stock-btn"
+                  onClick={() => setOnlyInStock(!onlyInStock)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    onlyInStock
+                      ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
+                      : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${onlyInStock ? 'bg-emerald-400' : 'bg-stone-300'}`} />
+                  <span>In Stock Only</span>
+                </button>
+
+                {/* Sort selection dropdown */}
+                <div className="relative">
+                  <select
+                    id="catalog-sort-select"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="pl-8 pr-8 py-2 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-800 focus:outline-none focus:border-stone-900 shadow-xs cursor-pointer appearance-none"
+                  >
+                    <option value="featured">Sort: Featured</option>
+                    <option value="rating">Highest Rated</option>
+                    <option value="price-asc">Price: Low to High</option>
+                    <option value="price-desc">Price: High to Low</option>
+                    <option value="newest">Newest Formulations</option>
+                  </select>
+                  <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 pointer-events-none" />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Filter chips when active */}
-        {(searchQuery || activeCategory !== 'All' || onlyInStock) && (
-          <div className="flex flex-wrap items-center gap-2 mb-6">
-            <span className="text-xs text-stone-500">Active filters:</span>
-            {activeCategory !== 'All' && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
-                <span>Category: {activeCategory}</span>
-                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setActiveCategory('All')} />
-              </span>
+            {/* Filter chips when active */}
+            {(searchQuery || activeCategory !== 'All' || onlyInStock) && (
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                <span className="text-xs text-stone-500">Active filters:</span>
+                {activeCategory !== 'All' && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                    <span>Category: {activeCategory}</span>
+                    <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setActiveCategory('All')} />
+                  </span>
+                )}
+                {searchQuery && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                    <span>"{searchQuery}"</span>
+                    <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSearchQuery('')} />
+                  </span>
+                )}
+                {onlyInStock && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                    <span>In Stock Only</span>
+                    <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setOnlyInStock(false)} />
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    setActiveCategory('All');
+                    setSearchQuery('');
+                    setOnlyInStock(false);
+                  }}
+                  className="text-xs text-stone-600 hover:text-stone-950 hover:underline ml-2 cursor-pointer font-medium"
+                >
+                  Clear All
+                </button>
+              </div>
             )}
-            {searchQuery && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
-                <span>"{searchQuery}"</span>
-                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSearchQuery('')} />
-              </span>
-            )}
-            {onlyInStock && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
-                <span>In Stock Only</span>
-                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setOnlyInStock(false)} />
-              </span>
-            )}
-            <button
-              onClick={() => {
-                setActiveCategory('All');
-                setSearchQuery('');
-                setOnlyInStock(false);
-              }}
-              className="text-xs text-stone-600 hover:text-stone-950 hover:underline ml-2 cursor-pointer font-medium"
-            >
-              Clear All
-            </button>
-          </div>
-        )}
 
-        {/* Product Cards Grid */}
-        {filteredProducts.length === 0 ? (
-          <div className="py-16 text-center bg-white rounded-3xl border border-stone-200 shadow-xs p-8 space-y-4">
-            <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
-              <PackageX className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-stone-900 text-lg">No formulations found</h3>
-            <p className="text-xs text-stone-500 max-w-sm mx-auto">
-              We couldn't locate any products matching your search criteria. Try modifying your search or clearing category filters.
-            </p>
-            <button
-              onClick={() => {
-                setActiveCategory('All');
-                setSearchQuery('');
-                setOnlyInStock(false);
-              }}
-              className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors cursor-pointer"
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                isWishlisted={wishlist.includes(product.id)}
-                onToggleWishlist={handleToggleWishlist}
-                onQuickView={setQuickViewProduct}
-                onAddToCart={(p) => handleAddToCart(p, 1)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+            {/* Product Cards Grid */}
+            {filteredProducts.length === 0 ? (
+              <div className="py-16 text-center bg-white rounded-3xl border border-stone-200 shadow-xs p-8 space-y-4">
+                <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
+                  <PackageX className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-stone-900 text-lg">No formulations found</h3>
+                <p className="text-xs text-stone-500 max-w-sm mx-auto">
+                  We couldn't locate any products matching your search criteria. Try modifying your search or clearing category filters.
+                </p>
+                <button
+                  onClick={() => {
+                    setActiveCategory('All');
+                    setSearchQuery('');
+                    setOnlyInStock(false);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    isWishlisted={wishlist.includes(product.id)}
+                    onToggleWishlist={handleToggleWishlist}
+                    onQuickView={(p) => navigateTo(`/product/${p.id}`)}
+                    onAddToCart={(p) => handleAddToCart(p, 1)}
+                  />
+                ))}
+              </div>
+            )}
+          </main>
+        </>
+      )}
 
       {/* FOOTER (With subtle staff portal link to /admin-p/login) */}
       <Footer
-        onSelectCategory={setActiveCategory}
+        onSelectCategory={(cat) => {
+          setActiveCategory(cat);
+          navigateTo('/shop');
+        }}
         onNavigateToAdminLogin={() => navigateTo('/admin-p/login')}
+        onNavigate={navigateTo}
       />
 
       {/* PRODUCT QUICK VIEW / DETAIL MODAL */}
@@ -719,6 +980,7 @@ export default function App() {
         appliedPromo={appliedPromo}
         promoDiscountRate={promoDiscountRate}
         onOrderComplete={handleOrderComplete}
+        currentUser={currentUser}
       />
 
       {/* ORDER SUCCESS CONFIRMATION MODAL */}
@@ -726,6 +988,34 @@ export default function App() {
         order={completedOrder}
         isOpen={!!completedOrder}
         onClose={() => setCompletedOrder(null)}
+      />
+
+      {/* CUSTOMER AUTHENTICATION MODAL */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+      />
+
+      {/* CUSTOMER ACCOUNT & ORDER TRACKING MODAL */}
+      <UserAccountModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        currentUser={currentUser}
+        orders={orders}
+        products={products}
+        wishlistIds={wishlist}
+        onLogout={handleLogout}
+        onUpdateUser={handleUpdateUser}
+        onAddToCart={(product: Product) => {
+          handleAddToCart(product, 1);
+          showToast(`Added ${product.name} to bag`);
+        }}
+        onViewProduct={(id: string) => {
+          setIsAccountModalOpen(false);
+          navigateTo(`/product/${id}`);
+        }}
+        initialTab={accountModalTab}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { Product, Order, CartItem } from '../types';
+import { Product, Order, CartItem, CustomerUser } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_ORDERS } from '../data/initialProducts';
 
 const PRODUCTS_KEY = 'beauty_store_products_v2';
@@ -6,6 +6,24 @@ const ORDERS_KEY = 'beauty_store_orders_v2';
 const CART_KEY = 'beauty_store_cart_v2';
 const WISHLIST_KEY = 'beauty_store_wishlist_v2';
 const ADMIN_AUTH_KEY = 'beauty_store_admin_auth_v2';
+const CUSTOMER_USER_KEY = 'ayesha_beauty_customer_v2';
+
+export const DEFAULT_CUSTOMER: CustomerUser = {
+  id: 'usr-ayesha-01',
+  name: 'Ayesha Khan',
+  email: 'ayesha@ayeshabeauty.com',
+  phone: '+1 (555) 234-5678',
+  joinedDate: '2025-10-12T10:00:00Z',
+  memberTier: 'Gold Glow',
+  rewardPoints: 450,
+  defaultShippingAddress: {
+    address: '742 Evergreen Terrace',
+    city: 'Beverly Hills',
+    postalCode: '90210',
+    phone: '+1 (555) 234-5678'
+  },
+  skinType: 'Combination / Sensitive'
+};
 
 export function getStoredProducts(): Product[] {
   try {
@@ -119,5 +137,33 @@ export function setAdminSession(authenticated: boolean): void {
     }
   } catch (err) {
     console.error('Failed to set admin session:', err);
+  }
+}
+
+// Customer User Authentication & Profile Helpers
+export function getStoredCustomerUser(): CustomerUser | null {
+  try {
+    const raw = localStorage.getItem(CUSTOMER_USER_KEY);
+    if (!raw) {
+      // Pre-seed default customer so orders and profile work instantly on first visit!
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(DEFAULT_CUSTOMER));
+      return DEFAULT_CUSTOMER;
+    }
+    if (raw === 'null') return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    return DEFAULT_CUSTOMER;
+  }
+}
+
+export function saveStoredCustomerUser(user: CustomerUser | null): void {
+  try {
+    if (user) {
+      localStorage.setItem(CUSTOMER_USER_KEY, JSON.stringify(user));
+    } else {
+      localStorage.setItem(CUSTOMER_USER_KEY, 'null');
+    }
+  } catch (err) {
+    console.error('Failed to save customer user:', err);
   }
 }

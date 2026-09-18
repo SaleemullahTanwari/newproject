@@ -96,17 +96,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-600' : ''}`} />
         </button>
 
-        {/* Quick View Button on Desktop Hover */}
+        {/* View Details Button on Desktop Hover */}
         <div className="absolute inset-x-3 bottom-3 hidden sm:flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
           <button
+            id={`view-details-btn-${product.id}`}
             onClick={(e) => {
               e.stopPropagation();
               onQuickView(product);
             }}
-            className="w-full py-2 px-3 rounded-lg bg-white/95 backdrop-blur-xs text-stone-900 text-xs font-semibold hover:bg-white transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl bg-white/95 backdrop-blur-xs text-stone-900 text-xs font-semibold hover:bg-white transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer border border-stone-200/80"
           >
             <Eye className="w-3.5 h-3.5" />
-            <span>Quick View</span>
+            <span>View Product Details</span>
           </button>
         </div>
       </div>

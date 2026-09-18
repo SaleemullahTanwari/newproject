@@ -415,8 +415,10 @@ export const INITIAL_PRODUCTS: Product[] = [
 export const INITIAL_ORDERS: Order[] = [
   {
     id: 'ord-beauty-101',
-    orderNumber: 'LUM-94821',
+    orderNumber: 'AYE-94821',
     createdAt: '2026-09-17T14:20:00Z',
+    userId: 'usr-ayesha-01',
+    trackingNumber: 'AYE-88291-US',
     items: [
       {
         productId: 'lumiere-01',
@@ -434,12 +436,12 @@ export const INITIAL_ORDERS: Order[] = [
       }
     ],
     customer: {
-      fullName: 'Élodie Laurent',
-      email: 'elodie.laurent@vogue-paris.com',
-      phone: '+33 6 42 89 12 04',
-      address: '14 Rue du Faubourg Saint-Honoré',
-      city: 'Paris',
-      postalCode: '75008'
+      fullName: 'Ayesha Khan',
+      email: 'ayesha@ayeshabeauty.com',
+      phone: '+1 (555) 234-5678',
+      address: '742 Evergreen Terrace',
+      city: 'Beverly Hills',
+      postalCode: '90210'
     },
     subtotal: 106,
     shipping: 0,
@@ -451,8 +453,10 @@ export const INITIAL_ORDERS: Order[] = [
   },
   {
     id: 'ord-beauty-102',
-    orderNumber: 'LUM-94820',
-    createdAt: '2026-09-16T18:45:00Z',
+    orderNumber: 'AYE-94820',
+    createdAt: '2026-09-10T18:45:00Z',
+    userId: 'usr-ayesha-01',
+    trackingNumber: 'AYE-77310-US',
     items: [
       {
         productId: 'lumiere-02',
@@ -470,20 +474,20 @@ export const INITIAL_ORDERS: Order[] = [
       }
     ],
     customer: {
-      fullName: 'Sophia Montgomery',
-      email: 'smontgomery@manhattanliving.com',
-      phone: '+1 (212) 555-0193',
-      address: '740 Park Avenue, Apt 11B',
-      city: 'New York, NY',
-      postalCode: '10021'
+      fullName: 'Ayesha Khan',
+      email: 'ayesha@ayeshabeauty.com',
+      phone: '+1 (555) 234-5678',
+      address: '742 Evergreen Terrace',
+      city: 'Beverly Hills',
+      postalCode: '90210'
     },
     subtotal: 112,
     shipping: 0,
     discount: 0,
     total: 112,
-    status: 'shipped',
+    status: 'delivered',
     paymentMethod: 'Credit Card (Visa)',
-    notes: 'Leave with doorman.'
+    notes: 'Leave at front porch.'
   },
   {
     id: 'ord-beauty-103',

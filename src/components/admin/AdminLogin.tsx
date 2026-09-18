@@ -59,15 +59,15 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess, onBackTo
       {/* Top Header */}
       <header className="px-6 py-6 border-b border-stone-800/80 backdrop-blur-md relative z-10 flex items-center justify-between max-w-7xl mx-auto w-full">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-200 to-rose-200 text-stone-950 flex items-center justify-center font-serif font-bold text-xl shadow-md">
-            L
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-amber-300 to-rose-300 text-stone-950 flex items-center justify-center font-extrabold text-xl shadow-md">
+            A
           </div>
           <div>
-            <span className="font-serif tracking-widest text-lg text-white block uppercase">
-              LUMIÈRE BEAUTÉ
+            <span className="font-extrabold tracking-tight text-lg text-white block">
+              AYESHA <span className="text-amber-300 font-light">BEAUTY</span>
             </span>
-            <span className="text-[10px] tracking-wider text-rose-200/60 uppercase block">
-              Atelier Management Portal
+            <span className="text-[10px] tracking-wider text-stone-400 uppercase block font-medium">
+              Merchant Management Portal
             </span>
           </div>
         </div>

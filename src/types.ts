@@ -51,6 +51,7 @@ export interface Order {
   id: string;
   orderNumber: string;
   createdAt: string;
+  userId?: string;
   items: OrderItem[];
   customer: OrderCustomer;
   subtotal: number;
@@ -60,6 +61,28 @@ export interface Order {
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   paymentMethod: string;
   notes?: string;
+  trackingNumber?: string;
+  estimatedDelivery?: string;
+}
+
+export interface UserAddress {
+  address: string;
+  city: string;
+  postalCode: string;
+  phone?: string;
+  country?: string;
+}
+
+export interface CustomerUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  joinedDate: string;
+  memberTier?: 'Member' | 'Gold Glow' | 'VIP Connoisseur';
+  rewardPoints?: number;
+  defaultShippingAddress?: UserAddress;
+  skinType?: string;
 }
 
 export interface FilterState {

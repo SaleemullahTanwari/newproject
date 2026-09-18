@@ -5,9 +5,14 @@ import { CATEGORIES } from '../../data/initialProducts';
 interface FooterProps {
   onSelectCategory: (category: string) => void;
   onNavigateToAdminLogin: () => void;
+  onNavigate?: (path: string) => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAdminLogin }) => {
+export const Footer: React.FC<FooterProps> = ({ 
+  onSelectCategory, 
+  onNavigateToAdminLogin,
+  onNavigate = () => {} 
+}) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -25,15 +30,15 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAd
           {/* Brand & Mission */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white text-stone-950 flex items-center justify-center font-bold text-base">
-                B
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-400 via-amber-300 to-rose-300 text-stone-950 flex items-center justify-center font-extrabold text-base">
+                A
               </div>
-              <span className="text-lg font-bold tracking-tight text-white">
-                STUDIO<span className="text-stone-400 font-light">BEAUTÉ</span>
+              <span className="text-lg font-black tracking-tight text-white">
+                AYESHA <span className="text-amber-300 font-light">BEAUTY</span>
               </span>
             </div>
             <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
-              Formulated in small artisanal batches in the south of France. We harmonize high-potency clinical biotechnology with pure, ethically wild-harvested botanical extracts.
+              Formulated in small artisanal batches with pure botanical extracts and clinical biotechnology. Delivering transformative nourishment, clean formulas, and radiant skin health.
             </p>
 
             {/* Newsletter input */}
@@ -45,7 +50,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAd
               {subscribed ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800">
                   <Check className="w-4 h-4" />
-                  <span>Welcome to Studio Beauté. Use code GLOW15 at checkout.</span>
+                  <span>Welcome to Ayesha Beauty. Use code GLOW15 at checkout.</span>
                 </div>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex gap-2 max-w-sm">
@@ -80,7 +85,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAd
                   <button
                     onClick={() => {
                       onSelectCategory(cat);
-                      window.scrollTo({ top: 400, behavior: 'smooth' });
+                      onNavigate('/shop');
                     }}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
@@ -97,11 +102,46 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAd
               Care & Support
             </h4>
             <ul className="space-y-2 text-xs text-stone-400">
-              <li>Track Shipment</li>
-              <li>Returns & Exchanges</li>
-              <li>Clinical Actives Guide</li>
-              <li>Refill Glass Program</li>
-              <li>Direct Concierge</li>
+              <li>
+                <button
+                  onClick={() => onNavigate('/orders')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  Track Shipment & Orders
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('/contact')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  Returns & Satisfaction
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('/about')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  Clinical Actives Guide
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('/about')}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  Violet Glass Sustainability
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => onNavigate('/contact')}
+                  className="hover:text-white transition-colors cursor-pointer text-left text-amber-300 font-medium"
+                >
+                  Direct Concierge
+                </button>
+              </li>
             </ul>
           </div>
 
@@ -126,7 +166,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAd
 
         {/* Bottom copyright and legal */}
         <div className="mt-12 pt-8 border-t border-stone-900 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-          <p>© 2026 Studio Beauté Skincare Inc. All rights reserved.</p>
+          <p>© 2026 Ayesha Beauty. All rights reserved.</p>
           <div className="flex items-center gap-6">
             <span>Privacy Policy</span>
             <span>Terms of Service</span>

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { X, ShieldCheck, CreditCard, Check, Lock, Sparkles } from 'lucide-react';
-import { CartItem, Order, OrderCustomer } from '../../types';
+import React, { useState, useEffect } from 'react';
+import { X, ShieldCheck, CreditCard, Check, Lock, Sparkles, UserCheck } from 'lucide-react';
+import { CartItem, Order, OrderCustomer, CustomerUser } from '../../types';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -8,6 +8,7 @@ interface CheckoutModalProps {
   cart: CartItem[];
   appliedPromo: string;
   promoDiscountRate: number;
+  currentUser?: CustomerUser | null;
   onOrderComplete: (newOrder: Order) => void;
 }
 
@@ -17,18 +18,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   cart,
   appliedPromo,
   promoDiscountRate,
+  currentUser,
   onOrderComplete
 }) => {
   if (!isOpen || cart.length === 0) return null;
 
   const [customer, setCustomer] = useState<OrderCustomer>({
-    fullName: 'Camille Laurent',
-    email: 'camille.laurent@paris-atelier.com',
-    phone: '+33 6 52 91 04 22',
-    address: '18 Rue de Richelieu, 3ème étage',
-    city: 'Paris',
-    postalCode: '75001'
+    fullName: currentUser?.name || 'Ayesha Khan',
+    email: currentUser?.email || 'ayesha@ayeshabeauty.com',
+    phone: currentUser?.phone || '+1 (555) 234-5678',
+    address: currentUser?.defaultShippingAddress?.address || '742 Evergreen Terrace',
+    city: currentUser?.defaultShippingAddress?.city || 'Beverly Hills',
+    postalCode: currentUser?.defaultShippingAddress?.postalCode || '90210'
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setCustomer({
+        fullName: currentUser.name,
+        email: currentUser.email,
+        phone: currentUser.phone || '',
+        address: currentUser.defaultShippingAddress?.address || '',
+        city: currentUser.defaultShippingAddress?.city || '',
+        postalCode: currentUser.defaultShippingAddress?.postalCode || ''
+      });
+    }
+  }, [currentUser]);
 
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'cod' | 'digital'>('card');
   const [cardNumber, setCardNumber] = useState('•••• •••• •••• 4242');
@@ -51,10 +66,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setIsProcessing(true);
 
     setTimeout(() => {
-      const orderNumber = `BEAUTE-${Math.floor(10000 + Math.random() * 90000)}`;
+      const orderNumber = `AYE-${Math.floor(10000 + Math.random() * 90000)}`;
       const newOrder: Order = {
         id: `ord-beauty-${Date.now()}`,
         orderNumber,
+        userId: currentUser?.id,
         createdAt: new Date().toISOString(),
         items: cart.map(item => ({
           productId: item.product.id,
@@ -87,8 +103,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-stone-200 flex items-center justify-between bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-stone-900 text-white flex items-center justify-center font-bold text-sm">
-              B
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-400 via-amber-300 to-rose-300 text-stone-950 flex items-center justify-center font-bold text-sm">
+              A
             </div>
             <div>
               <span className="text-[10px] uppercase tracking-wider text-stone-500 font-semibold block">
@@ -110,6 +126,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
+          {currentUser && (
+            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-stone-800">
+                <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Ordering as <strong className="font-semibold">{currentUser.name}</strong> ({currentUser.email})
+                </span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md">
+                Syncs to Account
+              </span>
+            </div>
+          )}
+
           {/* Section: Shipping Address */}
           <div className="space-y-3.5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-stone-800 pb-1 border-b border-stone-200 flex items-center justify-between">

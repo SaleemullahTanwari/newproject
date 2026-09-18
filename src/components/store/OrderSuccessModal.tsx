@@ -30,7 +30,7 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
             Order Confirmed
           </h2>
           <p className="text-xs text-stone-600 max-w-xs mx-auto leading-relaxed">
-            Thank you for ordering with Studio Beauté. We have dispatched a receipt and tracking confirmation to{' '}
+            Thank you for ordering with Ayesha Beauty. We have dispatched a receipt and tracking confirmation to{' '}
             <strong className="text-stone-900">{order.customer.email}</strong>.
           </p>
         </div>
