@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, ShoppingBag, Eye, Star, AlertCircle, Check } from 'lucide-react';
+import { Heart, ShoppingBag, Eye, Star, AlertCircle, Sparkles } from 'lucide-react';
 import { Product } from '../../types';
 
 interface ProductCardProps {
@@ -29,43 +29,52 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       id={`product-card-${product.id}`}
       className="group relative flex flex-col bg-white rounded-2xl border border-stone-200 overflow-hidden shadow-xs hover:shadow-md transition-all duration-300"
     >
-      {/* Image container */}
-      <div className="relative aspect-[4/3] bg-stone-100 overflow-hidden cursor-pointer" onClick={() => onQuickView(product)}>
+      {/* Product Image Container */}
+      <div
+        className="relative aspect-[4/3] bg-stone-100 overflow-hidden cursor-pointer"
+        onClick={() => onQuickView(product)}
+      >
         <img
-          src={product.images[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'}
+          src={product.images[0] || 'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?auto=format&fit=crop&w=1000&q=80'}
           alt={product.name}
           referrerPolicy="no-referrer"
           className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ${
-            isOutOfStock ? 'opacity-60 grayscale-[40%]' : ''
+            isOutOfStock ? 'opacity-60 grayscale-[30%]' : ''
           }`}
           loading="lazy"
         />
 
-        {/* Status badges */}
+        {/* Status Badges */}
         <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-          {product.badge === 'sale' && (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-xs">
-              Save {discountPercent}%
-            </span>
-          )}
-          {product.badge === 'new' && (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-stone-900 text-white shadow-xs">
-              New Arrival
-            </span>
-          )}
           {product.badge === 'bestseller' && (
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-amber-500 text-stone-950 shadow-xs">
               Bestseller
             </span>
           )}
-          {product.badge === 'limited' && (
-            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-indigo-600 text-white shadow-xs">
-              Limited Edition
+          {product.badge === 'award' && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-amber-400 text-stone-950 shadow-xs flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>Award Winner</span>
+            </span>
+          )}
+          {product.badge === 'clean' && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-emerald-700 text-white shadow-xs">
+              100% Clean Actives
+            </span>
+          )}
+          {product.badge === 'new' && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-stone-900 text-white shadow-xs">
+              New Formulation
+            </span>
+          )}
+          {product.badge === 'sale' && (
+            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-rose-600 text-white shadow-xs">
+              Save {discountPercent}%
             </span>
           )}
           {isOutOfStock && (
             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold tracking-wider uppercase bg-stone-700 text-stone-100 shadow-xs">
-              Out of Stock
+              Sold Out
             </span>
           )}
         </div>
@@ -77,7 +86,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             e.stopPropagation();
             onToggleWishlist(product.id);
           }}
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-colors z-10 shadow-xs ${
+          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-colors z-10 shadow-xs cursor-pointer ${
             isWishlisted
               ? 'bg-rose-50 text-rose-600 border border-rose-200'
               : 'bg-white/90 backdrop-blur-xs text-stone-600 hover:text-stone-950 hover:bg-white'
@@ -87,7 +96,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-600' : ''}`} />
         </button>
 
-        {/* Quick view hover button on desktop */}
+        {/* Quick View Button on Desktop Hover */}
         <div className="absolute inset-x-3 bottom-3 hidden sm:flex justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
           <button
             onClick={(e) => {
@@ -134,7 +143,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.name}
           </h3>
 
-          {/* Tagline */}
+          {/* Tagline / Formulation detail */}
           <p className="text-stone-600 text-xs mt-1 line-clamp-2 leading-relaxed">
             {product.tagline || product.description}
           </p>
@@ -144,16 +153,20 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <div className="flex items-center text-amber-500">
               <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
               <span className="text-xs font-semibold text-stone-800 ml-1">
-                {product.rating ? product.rating.toFixed(1) : '4.8'}
+                {product.rating ? product.rating.toFixed(1) : '4.9'}
               </span>
             </div>
             <span className="text-stone-400 text-xs font-light">
-              ({product.reviewsCount || 24})
+              ({product.reviewsCount || 48})
             </span>
-            <span className="text-stone-300">•</span>
-            <span className="text-stone-400 text-[11px] font-mono">
-              {product.sku}
-            </span>
+            {product.volume && (
+              <>
+                <span className="text-stone-300">•</span>
+                <span className="text-stone-500 text-[11px]">
+                  {product.volume}
+                </span>
+              </>
+            )}
           </div>
         </div>
 

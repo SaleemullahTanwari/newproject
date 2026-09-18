@@ -1,6 +1,6 @@
 {
-  "name": "E-Commerce Store & Admin",
-  "description": "Professional responsive e-commerce website with an integrated admin panel to list, edit, manage products, inventory, and customer orders.",
+  "name": "Lumière Beauté | Clean Botanical Skincare",
+  "description": "Luxury botanical skincare and beauty boutique with clean clinical formulations, radiant botanical serums, restorative creams, and private merchant admin portal.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

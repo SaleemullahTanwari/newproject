@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { Mail, Check, ShieldCheck, Truck, RefreshCw } from 'lucide-react';
+import { Mail, Check, ShieldCheck, Truck, Sparkles, Lock } from 'lucide-react';
 import { CATEGORIES } from '../../data/initialProducts';
 
 interface FooterProps {
   onSelectCategory: (category: string) => void;
-  onOpenAdmin: () => void;
+  onNavigateToAdminLogin: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin }) => {
+export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onNavigateToAdminLogin }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -26,23 +26,26 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-white text-stone-950 flex items-center justify-center font-bold text-base">
-                S
+                B
               </div>
               <span className="text-lg font-bold tracking-tight text-white">
-                STUDIO<span className="text-stone-400 font-light">ATELIER</span>
+                STUDIO<span className="text-stone-400 font-light">BEAUTÉ</span>
               </span>
             </div>
             <p className="text-xs text-stone-400 max-w-sm leading-relaxed">
-              An independent studio curating utilitarian artifacts, mechanical craftsmanship, and organic essentials designed to outlast modern obsolescence.
+              Formulated in small artisanal batches in the south of France. We harmonize high-potency clinical biotechnology with pure, ethically wild-harvested botanical extracts.
             </p>
 
             {/* Newsletter input */}
             <div className="pt-2">
-              <p className="text-xs font-semibold text-stone-200 mb-2">Subscribe to our seasonal dispatch</p>
+              <p className="text-xs font-semibold text-stone-200 mb-2 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>Subscribe for 15% off first order (Code: GLOW15)</span>
+              </p>
               {subscribed ? (
                 <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800">
                   <Check className="w-4 h-4" />
-                  <span>You are subscribed to private atelier drops.</span>
+                  <span>Welcome to Studio Beauté. Use code GLOW15 at checkout.</span>
                 </div>
               ) : (
                 <form onSubmit={handleSubscribe} className="flex gap-2 max-w-sm">
@@ -50,7 +53,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
                     id="footer-email-input"
                     type="email"
                     required
-                    placeholder="Enter email address"
+                    placeholder="Enter email address..."
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="flex-1 px-3 py-2 text-xs bg-stone-900 rounded-xl border border-stone-800 text-white placeholder-stone-500 focus:outline-none focus:border-stone-600"
@@ -68,7 +71,9 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
 
           {/* Quick Categories */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">Collections</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">
+              Formulations
+            </h4>
             <ul className="space-y-2 text-xs text-stone-400">
               {CATEGORIES.slice(1).map((cat) => (
                 <li key={cat}>
@@ -77,7 +82,7 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
                       onSelectCategory(cat);
                       window.scrollTo({ top: 400, behavior: 'smooth' });
                     }}
-                    className="hover:text-white transition-colors cursor-pointer"
+                    className="hover:text-white transition-colors cursor-pointer text-left"
                   >
                     {cat}
                   </button>
@@ -88,39 +93,51 @@ export const Footer: React.FC<FooterProps> = ({ onSelectCategory, onOpenAdmin })
 
           {/* Customer Service */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">Support & Care</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">
+              Care & Support
+            </h4>
             <ul className="space-y-2 text-xs text-stone-400">
               <li>Track Shipment</li>
               <li>Returns & Exchanges</li>
-              <li>Warranty & Repairs</li>
-              <li>Care Guidelines</li>
-              <li>Contact Concierge</li>
+              <li>Clinical Actives Guide</li>
+              <li>Refill Glass Program</li>
+              <li>Direct Concierge</li>
             </ul>
           </div>
 
-          {/* Merchant / Admin shortcut */}
+          {/* Staff Access / Admin link */}
           <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">Store Admin</h4>
-            <p className="text-xs text-stone-400 mb-3">
-              Manage inventory, add new products, edit pricing, or monitor customer orders.
+            <h4 className="text-xs font-bold uppercase tracking-wider text-stone-100 mb-3">
+              Merchant Portal
+            </h4>
+            <p className="text-xs text-stone-400 mb-3 leading-relaxed">
+              Authorized staff management for inventory, active catalog items, and fulfillment.
             </p>
             <button
               id="footer-admin-link"
-              onClick={onOpenAdmin}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 hover:text-white text-xs font-semibold border border-stone-700 transition-colors cursor-pointer"
+              onClick={onNavigateToAdminLogin}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-stone-900 hover:bg-stone-800 text-stone-300 hover:text-white text-xs font-semibold border border-stone-800 hover:border-stone-700 transition-colors cursor-pointer"
             >
-              <span>Access Admin Panel</span>
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Admin Login (/admin-p/login)</span>
             </button>
           </div>
         </div>
 
         {/* Bottom copyright and legal */}
         <div className="mt-12 pt-8 border-t border-stone-900 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
-          <p>© 2026 Studio Atelier Inc. All rights reserved.</p>
-          <div className="flex gap-6">
+          <p>© 2026 Studio Beauté Skincare Inc. All rights reserved.</p>
+          <div className="flex items-center gap-6">
             <span>Privacy Policy</span>
             <span>Terms of Service</span>
-            <span>Security</span>
+            <span>Clean Formulations Guarantee</span>
+            <button
+              onClick={onNavigateToAdminLogin}
+              className="text-stone-600 hover:text-stone-400 transition-colors cursor-pointer"
+              title="Staff portal login"
+            >
+              Staff Portal
+            </button>
           </div>
         </div>
       </div>

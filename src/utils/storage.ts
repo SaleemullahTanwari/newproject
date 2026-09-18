@@ -1,10 +1,11 @@
 import { Product, Order, CartItem } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_ORDERS } from '../data/initialProducts';
 
-const PRODUCTS_KEY = 'ecommerce_store_products_v1';
-const ORDERS_KEY = 'ecommerce_store_orders_v1';
-const CART_KEY = 'ecommerce_store_cart_v1';
-const WISHLIST_KEY = 'ecommerce_store_wishlist_v1';
+const PRODUCTS_KEY = 'beauty_store_products_v2';
+const ORDERS_KEY = 'beauty_store_orders_v2';
+const CART_KEY = 'beauty_store_cart_v2';
+const WISHLIST_KEY = 'beauty_store_wishlist_v2';
+const ADMIN_AUTH_KEY = 'beauty_store_admin_auth_v2';
 
 export function getStoredProducts(): Product[] {
   try {
@@ -98,4 +99,25 @@ export function resetDemoData(): { products: Product[]; orders: Order[] } {
   localStorage.removeItem(CART_KEY);
   localStorage.removeItem(WISHLIST_KEY);
   return { products: INITIAL_PRODUCTS, orders: INITIAL_ORDERS };
+}
+
+// Admin Authentication Helpers
+export function isAdminAuthenticated(): boolean {
+  try {
+    return localStorage.getItem(ADMIN_AUTH_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function setAdminSession(authenticated: boolean): void {
+  try {
+    if (authenticated) {
+      localStorage.setItem(ADMIN_AUTH_KEY, 'true');
+    } else {
+      localStorage.removeItem(ADMIN_AUTH_KEY);
+    }
+  } catch (err) {
+    console.error('Failed to set admin session:', err);
+  }
 }

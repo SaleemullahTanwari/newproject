@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Plus, Trash2, Image as ImageIcon, Sparkles, Check, HelpCircle, Eye } from 'lucide-react';
+import { X, Upload, Plus, Trash2, Image as ImageIcon, Sparkles, Check, HelpCircle } from 'lucide-react';
 import { Product } from '../../types';
 import { CATEGORIES, PRESET_IMAGES } from '../../data/initialProducts';
 
@@ -22,24 +22,28 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
   const [name, setName] = useState('');
   const [tagline, setTagline] = useState('');
-  const [category, setCategory] = useState('Electronics');
+  const [category, setCategory] = useState<string>(CATEGORIES[1]);
   const [customCategory, setCustomCategory] = useState('');
   const [price, setPrice] = useState<number | ''>('');
   const [comparePrice, setComparePrice] = useState<number | ''>('');
-  const [stock, setStock] = useState<number | ''>(15);
+  const [stock, setStock] = useState<number | ''>(20);
   const [sku, setSku] = useState('');
   const [status, setStatus] = useState<'active' | 'draft' | 'archived'>('active');
-  const [badge, setBadge] = useState<'none' | 'new' | 'bestseller' | 'sale' | 'limited'>('none');
+  const [badge, setBadge] = useState<'new' | 'bestseller' | 'sale' | 'limited' | 'clean' | 'award' | undefined>('new');
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [volume, setVolume] = useState('30ml / 1.0 fl oz');
+  const [skinType, setSkinType] = useState('All Skin Types, Sensitive & Dry');
+  const [keyActivesInput, setKeyActivesInput] = useState('Cold-Pressed Rosehip, 2% Bakuchiol, Squalane');
+  const [howToUse, setHowToUse] = useState('Warm 3 to 4 drops between clean palms and gently press into face and neck every evening.');
   const [specs, setSpecs] = useState<{ label: string; value: string }[]>([
-    { label: 'Material', value: 'Aerospace Aluminum / Vegan Leather' },
-    { label: 'Warranty', value: '2-Year Official Guarantee' }
+    { label: 'Formulation', value: '100% Waterless, Vegan & Clean' },
+    { label: 'Origin', value: 'Handcrafted in Provence, France' }
   ]);
   const [showPresets, setShowPresets] = useState(false);
   const [formError, setFormError] = useState('');
 
-  // Populate when editing
+  // Populate when editing or opening
   useEffect(() => {
     if (productToEdit) {
       setName(productToEdit.name);
@@ -50,32 +54,40 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       setStock(productToEdit.stock);
       setSku(productToEdit.sku);
       setStatus(productToEdit.status);
-      setBadge(productToEdit.badge || 'none');
+      setBadge(productToEdit.badge);
       setImageUrl(productToEdit.images[0] || '');
       setDescription(productToEdit.description);
-      setSpecs(productToEdit.specs && productToEdit.specs.length > 0 ? productToEdit.specs : [{ label: 'Origin', value: 'Handcrafted' }]);
+      setVolume(productToEdit.volume || '30ml / 1.0 fl oz');
+      setSkinType(productToEdit.skinType || 'All Skin Types');
+      setKeyActivesInput(productToEdit.keyActives ? productToEdit.keyActives.join(', ') : '');
+      setHowToUse(productToEdit.howToUse || '');
+      setSpecs(productToEdit.specs && productToEdit.specs.length > 0 ? productToEdit.specs : [{ label: 'Origin', value: 'Provence, France' }]);
     } else {
       // New product defaults
       setName('');
       setTagline('');
-      setCategory('Electronics');
+      setCategory(CATEGORIES[1]);
       setPrice('');
       setComparePrice('');
-      setStock(20);
-      setSku(`SKU-${Math.floor(1000 + Math.random() * 9000)}`);
+      setStock(25);
+      setSku(`LUM-${Math.floor(100 + Math.random() * 900)}`);
       setStatus('active');
       setBadge('new');
       setImageUrl(PRESET_IMAGES[0].url);
-      setDescription('Precision crafted item engineered with attention to detail and long-lasting durability.');
+      setDescription('Exquisite botanical formulation crafted with cold-pressed natural plant oils and active vitamins.');
+      setVolume('30ml / 1.0 fl oz');
+      setSkinType('All Skin Types including Reactive Complexions');
+      setKeyActivesInput('Botanical Lipids, Vitamin E, Plant Peptides');
+      setHowToUse('Smooth 3-4 drops over clean face and neck in upward circular motions.');
       setSpecs([
-        { label: 'Craftsmanship', value: 'Industrial Grade' },
-        { label: 'Warranty', value: '2-Year Replacement Guarantee' }
+        { label: 'Formulation', value: '100% Clean, Vegan & Cruelty-Free' },
+        { label: 'Certification', value: 'Leaping Bunny & Dermatologist Evaluated' }
       ]);
     }
   }, [productToEdit]);
 
   const handleGenerateSku = () => {
-    const prefix = name ? name.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() : 'PRD';
+    const prefix = name ? name.replace(/[^A-Za-z]/g, '').substring(0, 3).toUpperCase() : 'LUM';
     setSku(`${prefix}-${Math.floor(100 + Math.random() * 900)}`);
   };
 
@@ -100,458 +112,492 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  const handleSpecChange = (index: number, field: 'label' | 'value', text: string) => {
+  const handleSpecChange = (index: number, field: 'label' | 'value', val: string) => {
     const updated = [...specs];
-    updated[index][field] = text;
+    updated[index][field] = val;
     setSpecs(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+
     if (!name.trim()) {
       setFormError('Product name is required.');
       return;
     }
-    if (price === '' || Number(price) <= 0) {
-      setFormError('Please enter a valid product price.');
+
+    if (price === '' || isNaN(Number(price)) || Number(price) <= 0) {
+      setFormError('Please enter a valid retail price greater than 0.');
       return;
     }
 
-    const finalCategory = category === 'Custom' ? (customCategory.trim() || 'General') : category;
-    const finalImage = imageUrl.trim() || PRESET_IMAGES[0].url;
+    if (stock === '' || isNaN(Number(stock)) || Number(stock) < 0) {
+      setFormError('Stock quantity must be a non-negative number.');
+      return;
+    }
 
-    const newProduct: Product = {
-      id: productToEdit ? productToEdit.id : `prod-${Date.now()}`,
+    if (!imageUrl.trim()) {
+      setFormError('Please provide an image URL or choose a preset beauty image.');
+      return;
+    }
+
+    const finalCategory = category === 'Other' && customCategory.trim() ? customCategory.trim() : category;
+
+    const keyActives = keyActivesInput
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const productData: Product = {
+      id: productToEdit ? productToEdit.id : `lumiere-${Date.now()}`,
       name: name.trim(),
-      tagline: tagline.trim(),
-      description: description.trim(),
+      tagline: tagline.trim() || 'Cold-pressed botanical skin elixir',
+      description: description.trim() || 'Botanical formulation engineered for pure radiance and daily skin resilience.',
       price: Number(price),
       comparePrice: comparePrice !== '' && Number(comparePrice) > 0 ? Number(comparePrice) : undefined,
       category: finalCategory,
-      images: [finalImage],
-      stock: stock === '' ? 0 : Math.max(0, Number(stock)),
-      sku: sku.trim() || `SKU-${Date.now().toString().slice(-4)}`,
+      images: [imageUrl.trim()],
+      stock: Number(stock),
+      sku: sku.trim() || `LUM-${Date.now().toString().slice(-4)}`,
       status,
-      badge: badge === 'none' ? undefined : badge,
-      rating: productToEdit ? productToEdit.rating : 5.0,
+      badge: badge || undefined,
+      rating: productToEdit ? productToEdit.rating : 4.9,
       reviewsCount: productToEdit ? productToEdit.reviewsCount : 1,
-      specs: specs.filter(s => s.label.trim() && s.value.trim()),
+      featured: productToEdit ? productToEdit.featured : true,
+      volume: volume.trim(),
+      skinType: skinType.trim(),
+      keyActives: keyActives.length > 0 ? keyActives : undefined,
+      howToUse: howToUse.trim(),
+      specs: specs.filter((s) => s.label.trim() && s.value.trim()),
       createdAt: productToEdit ? productToEdit.createdAt : new Date().toISOString()
     };
 
-    onSaveProduct(newProduct);
+    onSaveProduct(productData);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-stone-950/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden border border-stone-200 max-h-[92vh] flex flex-col"
+        className="relative w-full max-w-3xl bg-[#1C1917] text-stone-100 rounded-3xl shadow-2xl border border-stone-800 flex flex-col max-h-[92vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="p-5 sm:p-6 border-b border-stone-200 flex items-center justify-between bg-stone-50">
+        {/* Modal Header */}
+        <div className="p-5 sm:p-6 border-b border-stone-800 flex items-center justify-between bg-stone-900/60">
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-stone-900">
-              {isEditing ? 'Edit Product Details' : 'List New Product on Store'}
+            <span className="text-[10px] font-bold uppercase tracking-widest text-rose-300">
+              {isEditing ? 'Editing Catalog Entry' : 'New Formulation Listing'}
+            </span>
+            <h2 className="text-xl font-serif font-bold text-white mt-0.5">
+              {isEditing ? `Edit: ${productToEdit.name}` : 'List New Beauty Product'}
             </h2>
-            <p className="text-xs text-stone-500">
-              {isEditing
-                ? 'Update pricing, images, inventory stock, or technical specifications.'
-                : 'Fill out the product information below to instantly publish to your storefront.'}
-            </p>
           </div>
           <button
-            id="product-form-modal-close"
             onClick={onClose}
-            className="p-2 rounded-lg text-stone-400 hover:text-stone-900 hover:bg-stone-200/60 transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-stone-400 hover:text-white hover:bg-stone-800 transition-colors cursor-pointer"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Form */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
+        {/* Modal Body Form */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1">
           {formError && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
-              {formError}
+            <div className="p-3.5 rounded-2xl bg-rose-950/60 border border-rose-800 text-rose-300 text-xs flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span>{formError}</span>
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Left Main Form Column */}
-            <div className="lg:col-span-8 space-y-5">
-              {/* Basic Details */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900">Product Identification</h3>
-                
-                <div>
-                  <label className="block text-xs font-semibold text-stone-700 mb-1">
-                    Product Title <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    id="admin-product-name-input"
-                    type="text"
-                    required
-                    placeholder="e.g. Titanium Ergonomic Desk Stand"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                  />
-                </div>
+          {/* Section 1: Basic Information */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-200/90 pb-1 border-b border-stone-800">
+              1. Product Essentials
+            </h3>
 
-                <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">
-                    Catchy Tagline / Short Summary
-                  </label>
-                  <input
-                    id="admin-product-tagline-input"
-                    type="text"
-                    placeholder="e.g. Dual-hinged CNC machined stand for laptops and tablets"
-                    value={tagline}
-                    onChange={(e) => setTagline(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                  />
-                </div>
-
-                {/* Category & Badge */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Category</label>
-                    <select
-                      id="admin-product-category-select"
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                    >
-                      {CATEGORIES.filter(c => c !== 'All').map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                      <option value="Custom">+ Custom Category...</option>
-                    </select>
-
-                    {category === 'Custom' && (
-                      <input
-                        type="text"
-                        placeholder="Enter custom category name"
-                        value={customCategory}
-                        onChange={(e) => setCustomCategory(e.target.value)}
-                        className="mt-2 w-full px-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Promotional Badge</label>
-                    <select
-                      id="admin-product-badge-select"
-                      value={badge}
-                      onChange={(e) => setBadge(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                    >
-                      <option value="none">None (Standard)</option>
-                      <option value="new">New Arrival</option>
-                      <option value="bestseller">Bestseller</option>
-                      <option value="sale">On Sale</option>
-                      <option value="limited">Limited Edition</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pricing & Inventory */}
-              <div className="space-y-3 pt-3 border-t border-stone-200">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900">Pricing & Inventory</h3>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Selling Price ($) <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-xs">$</span>
-                      <input
-                        id="admin-product-price-input"
-                        type="number"
-                        step="0.01"
-                        min="0.5"
-                        required
-                        placeholder="149.00"
-                        value={price}
-                        onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-stone-700 mb-1">
-                      Compare Price ($)
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 text-xs">$</span>
-                      <input
-                        id="admin-product-compare-price-input"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="189.00"
-                        value={comparePrice}
-                        onChange={(e) => setComparePrice(e.target.value === '' ? '' : Number(e.target.value))}
-                        className="w-full pl-7 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">
-                      Inventory Stock
-                    </label>
-                    <input
-                      id="admin-product-stock-input"
-                      type="number"
-                      min="0"
-                      required
-                      placeholder="15"
-                      value={stock}
-                      onChange={(e) => setStock(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-medium text-stone-700">Stock Keeping Unit (SKU)</label>
-                      <button
-                        type="button"
-                        onClick={handleGenerateSku}
-                        className="text-[10px] text-amber-700 hover:text-amber-800 font-semibold cursor-pointer"
-                      >
-                        Auto-generate
-                      </button>
-                    </div>
-                    <input
-                      id="admin-product-sku-input"
-                      type="text"
-                      placeholder="STD-DSK-01"
-                      value={sku}
-                      onChange={(e) => setSku(e.target.value)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white font-mono uppercase"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-700 mb-1">Publishing Status</label>
-                    <select
-                      id="admin-product-status-select"
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as any)}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                    >
-                      <option value="active">Active (Visible in Store)</option>
-                      <option value="draft">Draft (Hidden)</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description & Technical Specs */}
-              <div className="space-y-3 pt-3 border-t border-stone-200">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900">Description & Specifications</h3>
-
-                <div>
-                  <label className="block text-xs font-medium text-stone-700 mb-1">Product Description</label>
-                  <textarea
-                    id="admin-product-description-input"
-                    rows={3}
-                    required
-                    placeholder="Provide a compelling overview of the product materials, design ethos, and functionality..."
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white"
-                  />
-                </div>
-
-                {/* Specs rows */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-medium text-stone-700">Specification Table (Optional)</label>
-                    <button
-                      type="button"
-                      onClick={handleAddSpec}
-                      className="text-xs text-stone-700 hover:text-stone-950 font-semibold flex items-center gap-1 cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Row</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2">
-                    {specs.map((spec, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          placeholder="Feature (e.g. Dimensions)"
-                          value={spec.label}
-                          onChange={(e) => handleSpecChange(index, 'label', e.target.value)}
-                          className="w-1/3 px-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white"
-                        />
-                        <input
-                          type="text"
-                          placeholder="Value (e.g. 14 x 9 x 2 cm)"
-                          value={spec.value}
-                          onChange={(e) => handleSpecChange(index, 'value', e.target.value)}
-                          className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-stone-300 bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSpec(index)}
-                          className="p-1.5 text-stone-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-stone-300 mb-1">
+                Formulation Name <span className="text-rose-400">*</span>
+              </label>
+              <input
+                id="admin-product-name-input"
+                type="text"
+                required
+                placeholder="e.g., Rosehip & Phyto-Retinol Bakuchiol Elixir"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+              />
             </div>
 
-            {/* Right Media & Preview Column */}
-            <div className="lg:col-span-4 space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-900">Product Media</h3>
-
-              {/* Image Preview Box */}
-              <div className="aspect-[4/3] rounded-2xl bg-stone-100 border border-stone-200 overflow-hidden relative shadow-xs flex items-center justify-center">
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt="Preview"
-                    referrerPolicy="no-referrer"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-center p-4 text-stone-400">
-                    <ImageIcon className="w-8 h-8 mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">No image provided</p>
-                  </div>
-                )}
-                {badge !== 'none' && (
-                  <span className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-stone-900 text-white shadow-xs">
-                    {badge}
-                  </span>
-                )}
-              </div>
-
-              {/* Direct URL input */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Image URL</label>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Tagline / Benefit Subtitle
+                </label>
                 <input
-                  id="admin-product-image-url-input"
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:border-stone-900 bg-white font-mono"
+                  id="admin-product-tagline-input"
+                  type="text"
+                  placeholder="e.g., Gentle botanical cell-renewing concentrate"
+                  value={tagline}
+                  onChange={(e) => setTagline(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
                 />
               </div>
 
-              {/* File Upload Simulator */}
               <div>
-                <label className="block text-xs font-medium text-stone-700 mb-1">Or Upload From Device</label>
-                <label className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-dashed border-stone-300 hover:border-stone-500 bg-stone-50 hover:bg-white text-stone-600 text-xs font-medium transition-all cursor-pointer">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>Choose local file...</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Category
                 </label>
+                <select
+                  id="admin-product-category-select"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                >
+                  {CATEGORIES.slice(1).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                  <option value="Other">Other / Custom</option>
+                </select>
+              </div>
+            </div>
+
+            {category === 'Other' && (
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Custom Category Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Hair Treatments, Body Care"
+                  value={customCategory}
+                  onChange={(e) => setCustomCategory(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Pricing & Inventory */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-200/90 pb-1 border-b border-stone-800">
+              2. Pricing & Stock Inventory
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Retail Price ($) <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  id="admin-product-price-input"
+                  type="number"
+                  step="0.01"
+                  min="0.5"
+                  required
+                  placeholder="78.00"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400 font-mono"
+                />
               </div>
 
-              {/* Preset Gallery Picker */}
-              <div className="pt-2 border-t border-stone-200">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold text-stone-800 flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Preset Photography Library</span>
-                  </span>
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Compare Price ($)
+                </label>
+                <input
+                  id="admin-product-compare-price-input"
+                  type="number"
+                  step="0.01"
+                  placeholder="92.00"
+                  value={comparePrice}
+                  onChange={(e) => setComparePrice(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Units in Stock <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  id="admin-product-stock-input"
+                  type="number"
+                  min="0"
+                  required
+                  placeholder="20"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400 font-mono"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-medium text-stone-300">SKU Code</label>
                   <button
                     type="button"
-                    onClick={() => setShowPresets(!showPresets)}
-                    className="text-[11px] text-stone-500 hover:text-stone-900 cursor-pointer underline"
+                    onClick={handleGenerateSku}
+                    className="text-[10px] text-rose-300 hover:underline cursor-pointer"
                   >
-                    {showPresets ? 'Hide' : 'Browse'}
+                    Auto
                   </button>
                 </div>
+                <input
+                  id="admin-product-sku-input"
+                  type="text"
+                  placeholder="LUM-SER-01"
+                  value={sku}
+                  onChange={(e) => setSku(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400 font-mono uppercase"
+                />
+              </div>
+            </div>
 
-                {showPresets && (
-                  <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1 bg-stone-50 rounded-xl border border-stone-200">
-                    {PRESET_IMAGES.map((preset, idx) => (
-                      <button
-                        type="button"
-                        key={idx}
-                        onClick={() => {
-                          setImageUrl(preset.url);
-                          if (!name) setName(preset.name);
-                        }}
-                        className={`aspect-square rounded-lg overflow-hidden border-2 transition-all cursor-pointer relative group ${
-                          imageUrl === preset.url ? 'border-amber-500 ring-2 ring-amber-500/20' : 'border-stone-200 hover:border-stone-400'
-                        }`}
-                        title={preset.name}
-                      >
-                        <img src={preset.url} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        <div className="absolute inset-0 bg-stone-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-bold p-1 text-center transition-opacity">
-                          {preset.name}
-                        </div>
-                      </button>
-                    ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Listing Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                >
+                  <option value="active">Active (Visible in Store)</option>
+                  <option value="draft">Draft (Hidden)</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Product Highlight Badge
+                </label>
+                <select
+                  value={badge || 'none'}
+                  onChange={(e) => setBadge(e.target.value === 'none' ? undefined : (e.target.value as any))}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                >
+                  <option value="none">No Badge</option>
+                  <option value="clean">100% Clean</option>
+                  <option value="bestseller">Bestseller</option>
+                  <option value="award">Award Winner</option>
+                  <option value="new">New Arrival</option>
+                  <option value="sale">Sale / Discount</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Beauty Attributes & Ritual */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-200/90 pb-1 border-b border-stone-800">
+              3. Beauty Details, Ingredients & Ritual
+            </h3>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Volume / Bottle Size
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., 30ml / 1.0 fl oz"
+                  value={volume}
+                  onChange={(e) => setVolume(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-stone-300 mb-1">
+                  Target Skin Type
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., All Skin Types, Sensitive & Dehydrated"
+                  value={skinType}
+                  onChange={(e) => setSkinType(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-stone-300 mb-1">
+                Bioactive Ingredients (comma-separated)
+              </label>
+              <input
+                type="text"
+                placeholder="2% Bakuchiol, Cold-Pressed Rosehip, Squalane, Vitamin E"
+                value={keyActivesInput}
+                onChange={(e) => setKeyActivesInput(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-stone-300 mb-1">
+                Application Ritual / Instructions
+              </label>
+              <textarea
+                rows={2}
+                placeholder="Warm 3-4 drops between clean palms. Gently press into face, neck, and décolletage every evening..."
+                value={howToUse}
+                onChange={(e) => setHowToUse(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-stone-300 mb-1">
+                Full Description & Benefits
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Explain the clinical formulation, botanical extraction method, and skin transformation results..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-sm focus:outline-none focus:border-rose-400"
+              />
+            </div>
+          </div>
+
+          {/* Section 4: Imagery */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-stone-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-rose-200/90">
+                4. Product Photography
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPresets(!showPresets)}
+                className="text-xs text-rose-300 hover:text-white flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>{showPresets ? 'Hide Presets' : 'Choose from Luxury Beauty Presets'}</span>
+              </button>
+            </div>
+
+            {/* Presets Gallery */}
+            {showPresets && (
+              <div className="p-3 rounded-2xl bg-stone-900 border border-stone-800 grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-48 overflow-y-auto">
+                {PRESET_IMAGES.map((preset, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      setImageUrl(preset.url);
+                      setShowPresets(false);
+                    }}
+                    className="group cursor-pointer rounded-xl overflow-hidden border border-stone-800 hover:border-rose-400 transition-all"
+                  >
+                    <div className="aspect-square bg-stone-950">
+                      <img src={preset.url} alt={preset.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    </div>
+                    <p className="text-[10px] text-stone-300 p-1 truncate bg-stone-950/80">{preset.name}</p>
                   </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-start gap-4">
+              <div className="w-24 h-24 rounded-2xl bg-stone-900 border border-stone-700 overflow-hidden shrink-0 flex items-center justify-center">
+                {imageUrl ? (
+                  <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-stone-600" />
                 )}
               </div>
 
-              {/* Mini Card Preview recap */}
-              <div className="p-3 rounded-2xl bg-stone-50 border border-stone-200 space-y-1 text-xs">
-                <div className="flex justify-between items-center text-stone-500 text-[11px]">
-                  <span>Store Display Price</span>
-                  <span className="font-mono font-bold text-stone-900">
-                    ${Number(price || 0).toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center text-stone-500 text-[11px]">
-                  <span>Stock Available</span>
-                  <span className="font-semibold text-stone-800">{stock || 0} units</span>
-                </div>
-                <div className="flex justify-between items-center text-stone-500 text-[11px]">
-                  <span>Visibility</span>
-                  <span className="capitalize font-semibold text-stone-800">{status}</span>
+              <div className="flex-1 space-y-2">
+                <input
+                  id="admin-product-image-url-input"
+                  type="url"
+                  placeholder="Paste direct HTTPS image URL..."
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-700 text-white text-xs focus:outline-none focus:border-rose-400"
+                />
+
+                <div className="flex items-center gap-2 text-xs text-stone-400">
+                  <span>or upload local file:</span>
+                  <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-200 cursor-pointer text-xs border border-stone-700">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Browse Image</span>
+                    <input type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+                  </label>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Modal Action Buttons */}
-          <div className="pt-4 border-t border-stone-200 flex items-center justify-end gap-3">
+          {/* Section 5: Specifications */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-stone-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-rose-200/90">
+                5. Formulation Specifications
+              </h3>
+              <button
+                type="button"
+                onClick={handleAddSpec}
+                className="text-xs text-rose-300 hover:text-white flex items-center gap-1 cursor-pointer font-medium"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Attribute</span>
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {specs.map((spec, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Attribute Label (e.g., Formulation)"
+                    value={spec.label}
+                    onChange={(e) => handleSpecChange(i, 'label', e.target.value)}
+                    className="w-1/3 px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-700 text-white text-xs focus:outline-none focus:border-rose-400"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Value (e.g., 100% Waterless, Vegan)"
+                    value={spec.value}
+                    onChange={(e) => handleSpecChange(i, 'value', e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-700 text-white text-xs focus:outline-none focus:border-rose-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveSpec(i)}
+                    className="p-1.5 text-stone-500 hover:text-rose-400 cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div className="pt-4 border-t border-stone-800 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-stone-600 hover:text-stone-900 text-xs font-semibold hover:bg-stone-100 transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl text-stone-400 hover:text-white text-xs font-semibold cursor-pointer"
             >
               Cancel
             </button>
-
             <button
-              id="admin-save-product-btn"
+              id="admin-product-save-btn"
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer active:scale-98"
+              className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-rose-300 to-amber-200 hover:from-rose-200 hover:to-amber-100 text-stone-950 font-bold text-xs tracking-wider uppercase transition-all shadow-md cursor-pointer"
             >
-              <Check className="w-4 h-4 text-emerald-400" />
-              <span>{isEditing ? 'Save Product Changes' : 'Publish Product to Store'}</span>
+              {isEditing ? 'Update Listing' : 'Publish Product to Catalog'}
             </button>
           </div>
         </form>

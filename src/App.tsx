@@ -9,7 +9,9 @@ import {
   saveStoredCart,
   getStoredWishlist,
   saveStoredWishlist,
-  resetDemoData
+  resetDemoData,
+  isAdminAuthenticated,
+  setAdminSession
 } from './utils/storage';
 import { CATEGORIES } from './data/initialProducts';
 
@@ -29,6 +31,7 @@ import { AdminProducts } from './components/admin/AdminProducts';
 import { AdminOrders } from './components/admin/AdminOrders';
 import { AdminAnalytics } from './components/admin/AdminAnalytics';
 import { ProductFormModal } from './components/admin/ProductFormModal';
+import { AdminLogin } from './components/admin/AdminLogin';
 
 // Icons
 import {
@@ -37,16 +40,53 @@ import {
   CheckCircle2,
   SlidersHorizontal,
   X,
-  Store,
-  Shield,
   Search,
-  PackageX
+  PackageX,
+  Sparkles
 } from 'lucide-react';
 
 export default function App() {
-  // App view: 'store' | 'admin'
-  const [currentView, setCurrentView] = useState<'store' | 'admin'>('store');
+  // Routing State for /admin-p/login and /admin-p
+  const getInitialRoute = () => {
+    if (typeof window === 'undefined') return '/';
+    const path = window.location.pathname;
+    const hash = window.location.hash;
+    if (path.startsWith('/admin-p') || hash.includes('admin-p')) {
+      return path.startsWith('/admin-p') ? path : hash.replace('#', '');
+    }
+    return '/';
+  };
+
+  const [currentPath, setCurrentPath] = useState<string>(getInitialRoute);
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(isAdminAuthenticated);
   const [adminTab, setAdminTab] = useState<AdminTab>('products');
+
+  // Handle URL change
+  const navigateTo = (path: string) => {
+    try {
+      window.history.pushState({}, '', path);
+    } catch {
+      // fallback for environments where pushState is restricted
+      window.location.hash = path;
+    }
+    setCurrentPath(path);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const hash = window.location.hash;
+      if (path.startsWith('/admin-p') || hash.includes('admin-p')) {
+        setCurrentPath(path.startsWith('/admin-p') ? path : hash.replace('#', ''));
+      } else {
+        setCurrentPath('/');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Core Data
   const [products, setProducts] = useState<Product[]>([]);
@@ -54,7 +94,7 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [wishlist, setWishlist] = useState<string[]>([]);
 
-  // Filtering & Browsing State
+  // Filtering & Browsing State (Storefront)
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating' | 'newest'>('featured');
@@ -88,6 +128,7 @@ export default function App() {
     setOrders(getStoredOrders());
     setCart(getStoredCart());
     setWishlist(getStoredWishlist());
+    setIsAdminLoggedIn(isAdminAuthenticated());
   }, []);
 
   // Sync to Storage when data changes
@@ -127,7 +168,7 @@ export default function App() {
     }
 
     updateCart(updatedCart);
-    showToast(`Added "${product.name}" to cart`);
+    showToast(`Added "${product.name}" to your bag`);
   };
 
   const handleUpdateCartQuantity = (productId: string, quantity: number) => {
@@ -149,121 +190,131 @@ export default function App() {
     updateCart(updated);
   };
 
-  const handleToggleWishlist = (productId: string) => {
-    let updated: string[];
-    if (wishlist.includes(productId)) {
-      updated = wishlist.filter((id) => id !== productId);
-      showToast('Removed from wishlist');
-    } else {
-      updated = [...wishlist, productId];
-      showToast('Saved to your wishlist');
-    }
-    updateWishlist(updated);
-  };
-
   const handleApplyPromo = (code: string): boolean => {
-    if (code === 'STUDIO15') {
-      setAppliedPromo('STUDIO15');
+    const normalized = code.trim().toUpperCase();
+    if (normalized === 'GLOW15' || normalized === 'STUDIO15') {
+      setAppliedPromo(normalized);
       setPromoDiscountRate(0.15);
-      showToast('15% discount applied!');
+      showToast('15% botanical discount applied to bag');
       return true;
-    }
-    if (code === 'WELCOME10') {
-      setAppliedPromo('WELCOME10');
-      setPromoDiscountRate(0.10);
-      showToast('10% welcome discount applied!');
+    } else if (normalized === 'BOTANICAL10' || normalized === 'WELCOME10') {
+      setAppliedPromo(normalized);
+      setPromoDiscountRate(0.1);
+      showToast('10% botanical welcome discount applied');
       return true;
     }
     return false;
   };
 
-  // Order Placement
+  // Wishlist Toggle
+  const handleToggleWishlist = (productId: string) => {
+    let updatedWishlist: string[];
+    if (wishlist.includes(productId)) {
+      updatedWishlist = wishlist.filter((id) => id !== productId);
+      showToast('Removed formulation from saved wishlist');
+    } else {
+      updatedWishlist = [...wishlist, productId];
+      showToast('Saved formulation to your ritual wishlist');
+    }
+    updateWishlist(updatedWishlist);
+  };
+
+  // Order Complete
   const handleOrderComplete = (newOrder: Order) => {
-    // 1. Deduct stock from products inventory
-    const updatedProducts = products.map((prod) => {
-      const purchasedItem = newOrder.items.find((item) => item.productId === prod.id);
-      if (purchasedItem) {
-        return {
-          ...prod,
-          stock: Math.max(0, prod.stock - purchasedItem.quantity)
-        };
-      }
-      return prod;
-    });
-
-    updateProducts(updatedProducts);
-
-    // 2. Add to orders
+    // 1. Prepend order
     const updatedOrders = [newOrder, ...orders];
     updateOrders(updatedOrders);
 
-    // 3. Clear cart and checkout modal
+    // 2. Decrement stock
+    const updatedProducts = products.map((p) => {
+      const purchased = newOrder.items.find((it) => it.productId === p.id);
+      if (purchased) {
+        return { ...p, stock: Math.max(0, p.stock - purchased.quantity) };
+      }
+      return p;
+    });
+    updateProducts(updatedProducts);
+
+    // 3. Clear cart & close checkout
     updateCart([]);
     setIsCheckoutOpen(false);
-    setIsCartOpen(false);
-
-    // 4. Open success receipt
     setCompletedOrder(newOrder);
-    showToast(`Order #${newOrder.orderNumber} confirmed!`);
   };
 
-  // Admin Product Operations
-  const handleSaveProduct = (savedProduct: Product) => {
-    const exists = products.some((p) => p.id === savedProduct.id);
+  // Admin Actions
+  const handleSaveProduct = (productData: Product) => {
+    const exists = products.some((p) => p.id === productData.id);
     let updated: Product[];
     if (exists) {
-      updated = products.map((p) => (p.id === savedProduct.id ? savedProduct : p));
-      showToast(`Updated "${savedProduct.name}"`);
+      updated = products.map((p) => (p.id === productData.id ? productData : p));
+      showToast(`Updated "${productData.name}"`);
     } else {
-      updated = [savedProduct, ...products];
-      showToast(`Listed new product "${savedProduct.name}"`);
+      updated = [productData, ...products];
+      showToast(`Listed new formulation "${productData.name}"`);
     }
     updateProducts(updated);
   };
 
   const handleDeleteProduct = (productId: string) => {
+    const product = products.find((p) => p.id === productId);
     const updated = products.filter((p) => p.id !== productId);
     updateProducts(updated);
-    showToast('Product deleted from catalog');
+    showToast(`Removed "${product?.name || 'Product'}" from catalog`);
   };
 
   const handleUpdateStock = (productId: string, newStock: number) => {
-    const updated = products.map((p) => (p.id === productId ? { ...p, stock: newStock } : p));
+    const updated = products.map((p) => (p.id === productId ? { ...p, stock: Math.max(0, newStock) } : p));
     updateProducts(updated);
+    showToast('Updated inventory stock count');
   };
 
   const handleToggleProductStatus = (productId: string) => {
     const updated = products.map((p) => {
       if (p.id === productId) {
-        const nextStatus: Product['status'] = p.status === 'active' ? 'draft' : 'active';
-        return { ...p, status: nextStatus };
+        const nextStatus = p.status === 'active' ? 'draft' : 'active';
+        return { ...p, status: nextStatus as 'active' | 'draft' };
       }
       return p;
     });
     updateProducts(updated);
-    showToast('Product status updated');
+    showToast('Updated formulation visibility status');
   };
 
   const handleUpdateOrderStatus = (orderId: string, newStatus: Order['status']) => {
     const updated = orders.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o));
     updateOrders(updated);
-    showToast(`Order status set to ${newStatus}`);
+    showToast(`Order status updated to ${newStatus}`);
   };
 
-  const handleResetDemo = () => {
-    const res = resetDemoData();
-    setProducts(res.products);
-    setOrders(res.orders);
+  const handleResetDemoData = () => {
+    const reset = resetDemoData();
+    setProducts(reset.products);
+    setOrders(reset.orders);
     setCart([]);
     setWishlist([]);
-    showToast('Store catalog and orders reset to demo default');
+    showToast('Catalog and demo orders reset to fresh beauty defaults');
+  };
+
+  // Admin Auth Handlers
+  const handleAdminLoginSuccess = () => {
+    setAdminSession(true);
+    setIsAdminLoggedIn(true);
+    navigateTo('/admin-p');
+    showToast('Authenticated to Merchant Control Center');
+  };
+
+  const handleAdminLogout = () => {
+    setAdminSession(false);
+    setIsAdminLoggedIn(false);
+    navigateTo('/admin-p/login');
+    showToast('Signed out of Merchant Control Center');
   };
 
   // Filtered and Sorted Storefront Products
-  const visibleProducts = useMemo(() => {
+  const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        // Only active products in storefront
+        // Active status only for customer view
         if (p.status !== 'active') return false;
 
         // Category filter
@@ -271,19 +322,19 @@ export default function App() {
           return false;
         }
 
-        // Search query filter
+        // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchesName = p.name.toLowerCase().includes(q);
-          const matchesDesc = p.description.toLowerCase().includes(q);
-          const matchesTagline = p.tagline?.toLowerCase().includes(q);
-          const matchesSku = p.sku.toLowerCase().includes(q);
-          if (!matchesName && !matchesDesc && !matchesTagline && !matchesSku) {
+          const matchName = p.name.toLowerCase().includes(q);
+          const matchDesc = p.description.toLowerCase().includes(q);
+          const matchCat = p.category.toLowerCase().includes(q);
+          const matchActives = p.keyActives?.some((a) => a.toLowerCase().includes(q));
+          if (!matchName && !matchDesc && !matchCat && !matchActives) {
             return false;
           }
         }
 
-        // Only in stock filter
+        // Only in stock
         if (onlyInStock && p.stock <= 0) {
           return false;
         }
@@ -307,226 +358,26 @@ export default function App() {
       });
   }, [products, activeCategory, searchQuery, onlyInStock, sortBy]);
 
-  const cartTotalCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const lowStockCount = products.filter((p) => p.stock <= 5).length;
+  // Low stock counter for admin analytics
+  const lowStockCount = useMemo(() => {
+    return products.filter((p) => p.stock > 0 && p.stock <= 5).length;
+  }, [products]);
 
-  return (
-    <div className="min-h-screen flex flex-col bg-stone-50 text-stone-900 selection:bg-stone-900 selection:text-white">
-      {/* Toast Notification Banner */}
-      {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 animate-in slide-in-from-bottom-5 duration-300">
-          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-stone-900 text-white text-xs font-semibold shadow-xl border border-stone-800">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>{toastMessage}</span>
-          </div>
-        </div>
-      )}
+  // ROUTE DETERMINATION
+  const isDedicatedAdminLoginRoute = currentPath === '/admin-p/login';
+  const isAdminRoute = currentPath.startsWith('/admin-p');
 
-      {/* VIEW 1: STOREFRONT */}
-      {currentView === 'store' && (
-        <>
-          {/* Navigation Bar */}
-          <Navbar
-            cartCount={cartTotalCount}
-            wishlistCount={wishlist.length}
-            activeCategory={activeCategory}
-            onSelectCategory={(cat) => {
-              setActiveCategory(cat);
-              const element = document.getElementById('catalog-section');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onOpenCart={() => setIsCartOpen(true)}
-            onOpenAdmin={() => {
-              setCurrentView('admin');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-
-          {/* Hero Banner with Curated Showcase */}
-          <HeroBanner
-            totalProducts={products.filter((p) => p.status === 'active').length}
-            onExploreClick={() => {
-              const element = document.getElementById('catalog-section');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            onOpenAdmin={() => {
-              setCurrentView('admin');
-              setAdminTab('products');
-              setProductToEdit(null);
-              setIsProductFormOpen(true);
-            }}
-          />
-
-          {/* Catalog Section */}
-          <main id="catalog-section" className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 space-y-8">
-            {/* Header Title & Filter Bar */}
-            <div className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-900">
-                    {activeCategory === 'All' ? 'Curated Collection' : `${activeCategory}`}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-stone-500 mt-1">
-                    Showing {visibleProducts.length} objects available for immediate dispatch
-                  </p>
-                </div>
-
-                {/* Quick Sort & Stock Controls */}
-                <div className="flex flex-wrap items-center gap-2.5">
-                  {/* Stock Toggle */}
-                  <button
-                    id="filter-only-in-stock-btn"
-                    onClick={() => setOnlyInStock(!onlyInStock)}
-                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5 ${
-                      onlyInStock
-                        ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                        : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
-                    }`}
-                  >
-                    <span className={`w-2 h-2 rounded-full ${onlyInStock ? 'bg-emerald-400' : 'bg-stone-300'}`} />
-                    <span>In Stock Only</span>
-                  </button>
-
-                  {/* Sort Dropdown */}
-                  <div className="relative flex items-center">
-                    <ArrowUpDown className="w-3.5 h-3.5 absolute left-3 text-stone-400 pointer-events-none" />
-                    <select
-                      id="sort-by-select"
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value as any)}
-                      className="pl-8 pr-8 py-2 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-800 focus:outline-none focus:border-stone-900 shadow-xs cursor-pointer appearance-none"
-                    >
-                      <option value="featured">Featured First</option>
-                      <option value="price-asc">Price: Low to High</option>
-                      <option value="price-desc">Price: High to Low</option>
-                      <option value="rating">Highest Rated</option>
-                      <option value="newest">Newest Releases</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Categories Pills Bar */}
-              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
-                {CATEGORIES.map((cat) => {
-                  const isActive = activeCategory === cat;
-                  return (
-                    <button
-                      key={cat}
-                      id={`category-pill-${cat.toLowerCase().replace(/\s+/g, '-')}`}
-                      onClick={() => setActiveCategory(cat)}
-                      className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all shrink-0 cursor-pointer ${
-                        isActive
-                          ? 'bg-stone-900 text-white shadow-xs'
-                          : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-300 hover:text-stone-900'
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Active Search Badge */}
-              {searchQuery && (
-                <div className="flex items-center gap-2 text-xs bg-stone-100 text-stone-700 px-3 py-1.5 rounded-lg w-fit">
-                  <Search className="w-3.5 h-3.5 text-stone-400" />
-                  <span>
-                    Searching for: <strong className="text-stone-900">"{searchQuery}"</strong>
-                  </span>
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="p-0.5 rounded-full hover:bg-stone-200 text-stone-500 cursor-pointer ml-1"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Product Grid */}
-            {visibleProducts.length === 0 ? (
-              <div className="py-16 text-center bg-white rounded-3xl border border-stone-200 shadow-xs p-8 space-y-4">
-                <PackageX className="w-12 h-12 text-stone-300 mx-auto" />
-                <div className="space-y-1">
-                  <h3 className="text-base font-bold text-stone-900">No objects match your criteria</h3>
-                  <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                    Try changing your category filter, clearing your search query, or add new products via the admin panel.
-                  </p>
-                </div>
-                <div className="flex justify-center gap-3 pt-2">
-                  <button
-                    onClick={() => {
-                      setActiveCategory('All');
-                      setSearchQuery('');
-                      setOnlyInStock(false);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    Clear All Filters
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrentView('admin');
-                      setAdminTab('products');
-                      setProductToEdit(null);
-                      setIsProductFormOpen(true);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors cursor-pointer"
-                  >
-                    + List Product in Admin
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {visibleProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    isWishlisted={wishlist.includes(product.id)}
-                    onToggleWishlist={handleToggleWishlist}
-                    onQuickView={(p) => setQuickViewProduct(p)}
-                    onAddToCart={(p) => handleAddToCart(p, 1)}
-                  />
-                ))}
-              </div>
-            )}
-          </main>
-
-          {/* Footer */}
-          <Footer
-            onSelectCategory={(cat) => {
-              setActiveCategory(cat);
-              const element = document.getElementById('catalog-section');
-              if (element) {
-                element.scrollIntoView({ behavior: 'smooth' });
-              }
-            }}
-            onOpenAdmin={() => {
-              setCurrentView('admin');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          />
-        </>
-      )}
-
-      {/* VIEW 2: ADMIN PANEL */}
-      {currentView === 'admin' && (
-        <div className="min-h-screen flex flex-col bg-stone-100">
+  // If user navigated to /admin-p/login:
+  if (isDedicatedAdminLoginRoute) {
+    if (isAdminLoggedIn) {
+      // If already logged in, show admin control directly
+      return (
+        <div className="min-h-screen bg-[#1C1917] text-stone-100 flex flex-col font-sans">
           <AdminHeader
             currentTab={adminTab}
             onSelectTab={setAdminTab}
-            onBackToStore={() => {
-              setCurrentView('store');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onBackToStore={() => navigateTo('/')}
+            onLogout={handleAdminLogout}
             onOpenAddProduct={() => {
               setProductToEdit(null);
               setIsProductFormOpen(true);
@@ -534,10 +385,9 @@ export default function App() {
             totalProducts={products.length}
             totalOrders={orders.length}
             lowStockCount={lowStockCount}
-            onResetData={handleResetDemo}
+            onResetData={handleResetDemoData}
           />
-
-          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
             {adminTab === 'products' && (
               <AdminProducts
                 products={products}
@@ -553,29 +403,21 @@ export default function App() {
                 onUpdateStock={handleUpdateStock}
                 onToggleStatus={handleToggleProductStatus}
                 onViewProductInStore={(p) => {
-                  setCurrentView('store');
                   setQuickViewProduct(p);
+                  navigateTo('/');
                 }}
               />
             )}
-
             {adminTab === 'orders' && (
-              <AdminOrders
-                orders={orders}
-                onUpdateOrderStatus={handleUpdateOrderStatus}
-              />
+              <AdminOrders orders={orders} onUpdateOrderStatus={handleUpdateOrderStatus} />
             )}
-
             {adminTab === 'analytics' && (
               <AdminAnalytics
                 products={products}
                 orders={orders}
-                onRestockProduct={(productId, amount) => {
-                  const target = products.find((p) => p.id === productId);
-                  if (target) {
-                    handleUpdateStock(productId, target.stock + amount);
-                    showToast(`Restocked "${target.name}" (+${amount} units)`);
-                  }
+                onRestockProduct={(id, amt) => {
+                  const target = products.find((p) => p.id === id);
+                  handleUpdateStock(id, (target?.stock || 0) + amt);
                 }}
                 onOpenAddProduct={() => {
                   setProductToEdit(null);
@@ -584,32 +426,264 @@ export default function App() {
               />
             )}
           </main>
+          <ProductFormModal
+            isOpen={isProductFormOpen}
+            onClose={() => {
+              setIsProductFormOpen(false);
+              setProductToEdit(null);
+            }}
+            onSaveProduct={handleSaveProduct}
+            productToEdit={productToEdit}
+          />
+        </div>
+      );
+    }
+    return (
+      <AdminLogin
+        onLoginSuccess={handleAdminLoginSuccess}
+        onBackToStore={() => navigateTo('/')}
+      />
+    );
+  }
+
+  // If user is at /admin-p (and authenticated)
+  if (isAdminRoute) {
+    if (!isAdminLoggedIn) {
+      // Must authenticate first
+      return (
+        <AdminLogin
+          onLoginSuccess={handleAdminLoginSuccess}
+          onBackToStore={() => navigateTo('/')}
+        />
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-[#1C1917] text-stone-100 flex flex-col font-sans">
+        <AdminHeader
+          currentTab={adminTab}
+          onSelectTab={setAdminTab}
+          onBackToStore={() => navigateTo('/')}
+          onLogout={handleAdminLogout}
+          onOpenAddProduct={() => {
+            setProductToEdit(null);
+            setIsProductFormOpen(true);
+          }}
+          totalProducts={products.length}
+          totalOrders={orders.length}
+          lowStockCount={lowStockCount}
+          onResetData={handleResetDemoData}
+        />
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+          {adminTab === 'products' && (
+            <AdminProducts
+              products={products}
+              onOpenAddProduct={() => {
+                setProductToEdit(null);
+                setIsProductFormOpen(true);
+              }}
+              onEditProduct={(p) => {
+                setProductToEdit(p);
+                setIsProductFormOpen(true);
+              }}
+              onDeleteProduct={handleDeleteProduct}
+              onUpdateStock={handleUpdateStock}
+              onToggleStatus={handleToggleProductStatus}
+              onViewProductInStore={(p) => {
+                setQuickViewProduct(p);
+                navigateTo('/');
+              }}
+            />
+          )}
+          {adminTab === 'orders' && (
+            <AdminOrders orders={orders} onUpdateOrderStatus={handleUpdateOrderStatus} />
+          )}
+          {adminTab === 'analytics' && (
+            <AdminAnalytics
+              products={products}
+              orders={orders}
+              onRestockProduct={(id, amt) => {
+                const target = products.find((p) => p.id === id);
+                handleUpdateStock(id, (target?.stock || 0) + amt);
+              }}
+              onOpenAddProduct={() => {
+                setProductToEdit(null);
+                setIsProductFormOpen(true);
+              }}
+            />
+          )}
+        </main>
+        <ProductFormModal
+          isOpen={isProductFormOpen}
+          onClose={() => {
+            setIsProductFormOpen(false);
+            setProductToEdit(null);
+          }}
+          onSaveProduct={handleSaveProduct}
+          productToEdit={productToEdit}
+        />
+      </div>
+    );
+  }
+
+  // STANDARD CLIENT-FACING BEAUTY STORE VIEW (Previous sleek design with dark color palette)
+  return (
+    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col font-sans selection:bg-stone-900 selection:text-white">
+      {/* Dynamic Toast Feedback Notification */}
+      {toastMessage && (
+        <div className="fixed top-6 right-6 z-50 animate-in slide-in-from-top-3 fade-in duration-200">
+          <div className="flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-stone-900 text-white text-xs font-semibold shadow-2xl border border-stone-800">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
         </div>
       )}
 
-      {/* Floating View Switcher Button (Useful on Mobile & Desktop) */}
-      <div className="fixed bottom-5 left-5 z-40">
-        <button
-          id="floating-view-toggle"
-          onClick={() => {
-            setCurrentView(currentView === 'store' ? 'admin' : 'store');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-stone-950/90 hover:bg-stone-900 text-white text-xs font-semibold shadow-2xl border border-stone-800 backdrop-blur-md transition-all active:scale-95 cursor-pointer"
-        >
-          {currentView === 'store' ? (
-            <>
-              <Shield className="w-4 h-4 text-amber-400" />
-              <span>Admin Panel ({products.length})</span>
-            </>
-          ) : (
-            <>
-              <Store className="w-4 h-4 text-emerald-400" />
-              <span>Back to Storefront</span>
-            </>
-          )}
-        </button>
-      </div>
+      {/* STOREFRONT NAVIGATION (Customer view) */}
+      <Navbar
+        cartCount={cart.reduce((sum, it) => sum + it.quantity, 0)}
+        wishlistCount={wishlist.length}
+        activeCategory={activeCategory}
+        onSelectCategory={setActiveCategory}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onOpenCart={() => setIsCartOpen(true)}
+      />
+
+      {/* DARK HERO BANNER */}
+      <HeroBanner
+        totalProducts={products.filter((p) => p.status === 'active').length}
+        onExploreClick={() => {
+          const el = document.getElementById('catalog-section');
+          el?.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+
+      {/* MAIN CATALOG SECTION */}
+      <main id="catalog-section" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16 w-full">
+        {/* Section Header Title & Filters */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-stone-200 mb-8">
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-stone-900">
+              {activeCategory === 'All' ? 'Curated Formulations' : activeCategory}
+            </h2>
+            <p className="text-xs text-stone-500 mt-1 font-normal">
+              Showing {filteredProducts.length} available {filteredProducts.length === 1 ? 'formulation' : 'formulations'}
+            </p>
+          </div>
+
+          {/* Quick Filters & Sorting Controls */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* In stock toggle pill */}
+            <button
+              id="filter-in-stock-btn"
+              onClick={() => setOnlyInStock(!onlyInStock)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                onlyInStock
+                  ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
+                  : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${onlyInStock ? 'bg-emerald-400' : 'bg-stone-300'}`} />
+              <span>In Stock Only</span>
+            </button>
+
+            {/* Sort selection dropdown */}
+            <div className="relative">
+              <select
+                id="catalog-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="pl-8 pr-8 py-2 text-xs font-semibold rounded-xl border border-stone-200 bg-white text-stone-800 focus:outline-none focus:border-stone-900 shadow-xs cursor-pointer appearance-none"
+              >
+                <option value="featured">Sort: Featured</option>
+                <option value="rating">Highest Rated</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="newest">Newest Formulations</option>
+              </select>
+              <ArrowUpDown className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-500 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Filter chips when active */}
+        {(searchQuery || activeCategory !== 'All' || onlyInStock) && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-xs text-stone-500">Active filters:</span>
+            {activeCategory !== 'All' && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                <span>Category: {activeCategory}</span>
+                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setActiveCategory('All')} />
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                <span>"{searchQuery}"</span>
+                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setSearchQuery('')} />
+              </span>
+            )}
+            {onlyInStock && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs bg-stone-900 text-white font-medium shadow-xs">
+                <span>In Stock Only</span>
+                <X className="w-3.5 h-3.5 cursor-pointer" onClick={() => setOnlyInStock(false)} />
+              </span>
+            )}
+            <button
+              onClick={() => {
+                setActiveCategory('All');
+                setSearchQuery('');
+                setOnlyInStock(false);
+              }}
+              className="text-xs text-stone-600 hover:text-stone-950 hover:underline ml-2 cursor-pointer font-medium"
+            >
+              Clear All
+            </button>
+          </div>
+        )}
+
+        {/* Product Cards Grid */}
+        {filteredProducts.length === 0 ? (
+          <div className="py-16 text-center bg-white rounded-3xl border border-stone-200 shadow-xs p-8 space-y-4">
+            <div className="w-12 h-12 rounded-full bg-stone-100 flex items-center justify-center mx-auto text-stone-400">
+              <PackageX className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-stone-900 text-lg">No formulations found</h3>
+            <p className="text-xs text-stone-500 max-w-sm mx-auto">
+              We couldn't locate any products matching your search criteria. Try modifying your search or clearing category filters.
+            </p>
+            <button
+              onClick={() => {
+                setActiveCategory('All');
+                setSearchQuery('');
+                setOnlyInStock(false);
+              }}
+              className="px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold transition-colors cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+            {filteredProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                isWishlisted={wishlist.includes(product.id)}
+                onToggleWishlist={handleToggleWishlist}
+                onQuickView={setQuickViewProduct}
+                onAddToCart={(p) => handleAddToCart(p, 1)}
+              />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* FOOTER (With subtle staff portal link to /admin-p/login) */}
+      <Footer
+        onSelectCategory={setActiveCategory}
+        onNavigateToAdminLogin={() => navigateTo('/admin-p/login')}
+      />
 
       {/* PRODUCT QUICK VIEW / DETAIL MODAL */}
       <ProductDetailModal
@@ -647,28 +721,11 @@ export default function App() {
         onOrderComplete={handleOrderComplete}
       />
 
-      {/* ORDER SUCCESS RECEIPT MODAL */}
+      {/* ORDER SUCCESS CONFIRMATION MODAL */}
       <OrderSuccessModal
         order={completedOrder}
         isOpen={!!completedOrder}
         onClose={() => setCompletedOrder(null)}
-        onViewInAdmin={() => {
-          setCompletedOrder(null);
-          setCurrentView('admin');
-          setAdminTab('orders');
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        }}
-      />
-
-      {/* ADMIN PRODUCT CREATION & EDITING MODAL */}
-      <ProductFormModal
-        isOpen={isProductFormOpen}
-        onClose={() => {
-          setIsProductFormOpen(false);
-          setProductToEdit(null);
-        }}
-        onSaveProduct={handleSaveProduct}
-        productToEdit={productToEdit}
       />
     </div>
   );

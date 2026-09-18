@@ -10,12 +10,17 @@ export interface Product {
   stock: number;
   sku: string;
   status: 'active' | 'draft' | 'archived';
-  badge?: 'new' | 'bestseller' | 'sale' | 'limited';
+  badge?: 'new' | 'bestseller' | 'sale' | 'limited' | 'clean' | 'award';
   rating: number;
   reviewsCount: number;
   specs: { label: string; value: string }[];
   featured?: boolean;
   createdAt: string;
+  // Beauty-specific attributes
+  volume?: string;
+  skinType?: string;
+  keyActives?: string[];
+  howToUse?: string;
 }
 
 export interface CartItem {
