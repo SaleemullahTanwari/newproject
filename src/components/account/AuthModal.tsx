@@ -252,7 +252,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-stone-800 hover:bg-stone-700/80 border border-stone-700 text-stone-200 text-xs font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>1-Click Test Sign-In (Ayesha Khan)</span>
+                <span>1-Click Tests Sign-In (Ayesha Khan)</span>
               </button>
             </div>
           </form>
